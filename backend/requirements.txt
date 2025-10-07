@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+pydantic
+httpx
+python-dotenv
+nltk
+aiofiles
+typing_extensions
