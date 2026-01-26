@@ -119,10 +119,10 @@ interface StatCardProps {
 
 function StatCard({ icon, label, value, color }: StatCardProps) {
     const colorClasses = {
-        yellow: "from-yellow-400 to-orange-400 shadow-yellow-200",
-        green: "from-green-400 to-emerald-500 shadow-green-200",
-        orange: "from-orange-400 to-red-400 shadow-orange-200",
-        purple: "from-purple-400 to-pink-500 shadow-purple-200",
+        yellow: "from-yellow-400 to-orange-400 shadow-xl shadow-yellow-200/50",
+        green: "from-green-400 to-emerald-500 shadow-xl shadow-green-200/50",
+        orange: "from-orange-400 to-red-400 shadow-xl shadow-orange-200/50",
+        purple: "from-purple-400 to-pink-500 shadow-xl shadow-purple-200/50",
     };
 
     return (

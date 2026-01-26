@@ -1,46 +1,21 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import * as React from "react"
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-    error?: boolean;
-    success?: boolean;
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-const Input = forwardRef<HTMLInputElement, InputProps>(
-    ({ className, error, success, ...props }, ref) => {
-        return (
-            <input
-                ref={ref}
-                className={cn(
-                    // Base styles
-                    "w-full px-6 py-4 text-xl text-center font-medium rounded-2xl",
-                    "bg-white border-2 transition-all duration-200",
-                    "placeholder:text-gray-400",
-                    "focus:outline-none focus:ring-4",
-                    // Default state
-                    !error && !success && [
-                        "border-gray-200",
-                        "focus:border-purple-400 focus:ring-purple-100",
-                    ],
-                    // Error state
-                    error && [
-                        "border-red-400 bg-red-50",
-                        "focus:border-red-500 focus:ring-red-100",
-                        "animate-shake",
-                    ],
-                    // Success state
-                    success && [
-                        "border-green-400 bg-green-50",
-                        "focus:border-green-500 focus:ring-green-100",
-                    ],
-                    className
-                )}
-                {...props}
-            />
-        );
-    }
-);
-
-Input.displayName = "Input";
-
-export { Input };
+export { Input }

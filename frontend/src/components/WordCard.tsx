@@ -163,7 +163,7 @@ export function WordCard({
             </Button>
 
             {/* Progress bar */}
-            <Progress value={localReadCount} max={5} className="mb-6" />
+            <Progress value={localReadCount} className="mb-6" />
 
             {/* Practice or Spelling section */}
             {canPractice ? (
@@ -186,9 +186,11 @@ export function WordCard({
                         placeholder="Skriv ordet her..."
                         value={spellingAttempt}
                         onChange={(e) => setSpellingAttempt(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleVerifySpelling()}
-                        error={spellingError}
-                        success={spellingSuccess}
+                        onKeyDown={(e: React.KeyboardEvent) => e.key === "Enter" && handleVerifySpelling()}
+                        className={cn(
+                            spellingError && "border-red-400 bg-red-50 animate-shake",
+                            spellingSuccess && "border-green-400 bg-green-50"
+                        )}
                         autoFocus
                     />
                     <Button
