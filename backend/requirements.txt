@@ -7,3 +7,5 @@ python-dotenv
 nltk
 aiofiles
 typing_extensions
+python-multipart
+google-generativeai
