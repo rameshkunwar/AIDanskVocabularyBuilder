@@ -418,3 +418,20 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Ignore all generated audio
+*.mp3
+*.wav
+
+# Ignore Python virtual environments
+venv/
+env/
+.env
+__pycache__/
+
+# Ignore OS specific files
+.DS_Store
+
+backend/audio_cache/
+backend/uploads/
+*.db
