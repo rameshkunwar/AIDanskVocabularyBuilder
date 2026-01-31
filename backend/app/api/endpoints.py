@@ -189,7 +189,7 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 @router.get("/words/next", response_model=list[WordResponse])
-async def get_next_words(limit: int = 5):
+async def get_next_words(limit: int = 100):
     """
     Get the next words to practice, prioritized by LLM.
     """
