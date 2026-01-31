@@ -114,17 +114,35 @@ async def upload_image(file: UploadFile = File(...)):
     # Read image bytes
     image_bytes = await file.read()
     
+    # Save file to disk
+    import uuid
+    import os
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = f"uploads/{unique_filename}"
+    os.makedirs("uploads", exist_ok=True)
+    
+    with open(file_path, "wb") as f:
+        f.write(image_bytes)
+    
     # Extract words using LLM
-    extracted = await extract_words_from_image(image_bytes)
+    try:
+        extracted = await extract_words_from_image(image_bytes, mime_type=file.content_type)
+    except Exception as e:
+        print(f"ERROR: Exception during extraction call: {e}")
+        raise HTTPException(status_code=500, detail=f"LLM extraction service error: {str(e)}")
     
     if not extracted:
-        raise HTTPException(status_code=422, detail="Could not extract words from image")
+        # Check if it was an API key issue or something else
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="Missing GEMINI_API_KEY in server environment")
+        raise HTTPException(status_code=422, detail="Could not extract words. Please check if the image is clear and contains Danish text.")
     
     # Save source
     with get_session() as session:
         source = Source(
             name=file.filename or "uploaded_image",
-            path=f"uploads/{file.filename}"
+            path=file_path
         )
         session.add(source)
         session.commit()
@@ -160,12 +178,13 @@ async def upload_image(file: UploadFile = File(...)):
                 words_added += 1
         
         session.commit()
+        source_id = source.id
     
     return {
         "success": True,
         "words_extracted": len(extracted),
         "words_added": words_added,
-        "source_id": source.id
+        "source_id": source_id
     }
 
 
@@ -358,10 +377,17 @@ async def get_word_tts(word_id: int):
         if not audio_bytes:
             raise HTTPException(status_code=500, detail="Could not generate audio")
         
+        from app.tts import TTS_PROVIDER
+        media_type = "audio/wav" if TTS_PROVIDER == "local" else "audio/mpeg"
+        ext = "wav" if TTS_PROVIDER == "local" else "mp3"
+        
+        # Use ID instead of word text in filename to avoid encoding issues with Danish chars
+        filename = f"word_{word.id}.{ext}"
+        
         return Response(
             content=audio_bytes,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": f'inline; filename="{word.text}.mp3"'}
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
         )
 
 

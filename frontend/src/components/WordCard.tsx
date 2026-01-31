@@ -34,7 +34,11 @@ export function WordCard({
     const needsSpelling = localReadCount >= 5 && !word.spelling_verified;
 
     const handlePlayAudio = async () => {
+        const ttsUrl = getWordTTSUrl(word.id);
+        console.log(`DEBUG: Attempting to play TTS. URL: ${ttsUrl}`);
+
         if (isPlaying) {
+            console.log("DEBUG: Already playing, pausing...");
             audioRef.current?.pause();
             setIsPlaying(false);
             return;
@@ -42,14 +46,24 @@ export function WordCard({
 
         try {
             if (!audioRef.current) {
-                audioRef.current = new Audio(getWordTTSUrl(word.id));
-                audioRef.current.onended = () => setIsPlaying(false);
-                audioRef.current.onerror = () => setIsPlaying(false);
+                console.log("DEBUG: Creating new Audio object");
+                audioRef.current = new Audio(ttsUrl);
+                audioRef.current.crossOrigin = "anonymous";
+                audioRef.current.onended = () => {
+                    console.log("DEBUG: Audio finished playing");
+                    setIsPlaying(false);
+                };
+                audioRef.current.onerror = (e) => {
+                    console.error("DEBUG: Audio error event:", e);
+                    setIsPlaying(false);
+                };
             }
+
+            console.log("DEBUG: Calling play()...");
             await audioRef.current.play();
             setIsPlaying(true);
         } catch (error) {
-            console.error("Error playing audio:", error);
+            console.error("DEBUG: Error playing audio catch block:", error);
             setIsPlaying(false);
         }
     };

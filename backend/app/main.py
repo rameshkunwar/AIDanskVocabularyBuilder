@@ -43,23 +43,47 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AIDanskVocabularyBuilder",
-    description="Danish vocabulary learning app for children",
+    title="AIDansk Vocabulary Builder API",
+    description="""
+    A Danish vocabulary learning app for children (3rd Grade focus).
+    
+    Features:
+    * **Upload book pages** to extract vocabulary
+    * **Practice words** with TTS and spelling verification
+    * **Gamified progress** with points and badges
+    """,
     version="1.0.0",
-    lifespan=lifespan
+    contact={
+        "name": "AIDansk Support",
+        "url": "https://example.com/support",
+    },
+    license_info={
+        "name": "MIT",
+    },
+    lifespan=lifespan,
+    openapi_url="/api/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-# Configure CORS for React frontend
+# Configure CORS for React frontend (Development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(router, prefix="/api")
+# Include API routes with tags for Swagger UI
+app.include_router(router, prefix="/api", tags=["Vocabulary & Learning"])
 
 
 @app.get("/")
