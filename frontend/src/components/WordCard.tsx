@@ -28,6 +28,7 @@ export function WordCard({
     const [spellingError, setSpellingError] = useState(false);
     const [spellingSuccess, setSpellingSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [practiceInput, setPracticeInput] = useState("");
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const canPractice = localReadCount < 5;
@@ -35,10 +36,39 @@ export function WordCard({
 
     const handlePlayAudio = async () => {
         const ttsUrl = getWordTTSUrl(word.id);
-        console.log(`DEBUG: Attempting to play TTS. URL: ${ttsUrl}`);
+
+        // --- PRACTICE/READ LOGIC MERGED HERE ---
+        if (canPractice && !isLoading) {
+            // Optimistic update
+            const previousCount = localReadCount;
+            const newCount = localReadCount + 1;
+            setLocalReadCount(newCount);
+
+            // Update parent immediately
+            onWordUpdate?.({
+                ...word,
+                read_count: newCount,
+                mastered: newCount >= 5 ? word.mastered : false
+            });
+
+            // Fire and forget (mostly) background sync
+            practiceWord(word.id).then(response => {
+                if (response.word.read_count >= 5) {
+                    setShowSpelling(true);
+                }
+                response.badges_earned?.forEach((badge) => {
+                    onBadgeEarned?.({ emoji: badge.emoji, name: badge.name });
+                });
+                onPointsEarned?.(response.points_earned);
+            }).catch(err => {
+                console.error("Error recording practice:", err);
+                setLocalReadCount(previousCount);
+                onWordUpdate?.(word);
+            });
+        }
+        // ---------------------------------------
 
         if (isPlaying) {
-            console.log("DEBUG: Already playing, pausing...");
             audioRef.current?.pause();
             setIsPlaying(false);
             return;
@@ -46,51 +76,16 @@ export function WordCard({
 
         try {
             if (!audioRef.current) {
-                console.log("DEBUG: Creating new Audio object");
                 audioRef.current = new Audio(ttsUrl);
                 audioRef.current.crossOrigin = "anonymous";
-                audioRef.current.onended = () => {
-                    console.log("DEBUG: Audio finished playing");
-                    setIsPlaying(false);
-                };
-                audioRef.current.onerror = (e) => {
-                    console.error("DEBUG: Audio error event:", e);
-                    setIsPlaying(false);
-                };
+                audioRef.current.onended = () => setIsPlaying(false);
+                audioRef.current.onerror = () => setIsPlaying(false);
             }
-
-            console.log("DEBUG: Calling play()...");
             await audioRef.current.play();
             setIsPlaying(true);
         } catch (error) {
-            console.error("DEBUG: Error playing audio catch block:", error);
+            console.error("Error playing audio:", error);
             setIsPlaying(false);
-        }
-    };
-
-    const handleReadIt = async () => {
-        if (!canPractice || isLoading) return;
-        setIsLoading(true);
-
-        try {
-            const response = await practiceWord(word.id);
-            const newCount = response.word.read_count;
-            setLocalReadCount(newCount);
-            onWordUpdate?.(response.word);
-            onPointsEarned?.(response.points_earned);
-
-            if (newCount >= 5) {
-                setShowSpelling(true);
-            }
-
-            // Check for earned badges
-            response.badges_earned?.forEach((badge) => {
-                onBadgeEarned?.({ emoji: badge.emoji, name: badge.name });
-            });
-        } catch (error) {
-            console.error("Error recording practice:", error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -135,6 +130,9 @@ export function WordCard({
         );
     }
 
+    // Calculate progress percentage (assuming 5 is mastery)
+    const progressPercentage = Math.min(100, (localReadCount / 5) * 100);
+
     return (
         <Card
             variant="gradient"
@@ -156,7 +154,7 @@ export function WordCard({
                 <p className="text-xl text-gray-600">{word.definition}</p>
             </div>
 
-            {/* Audio button */}
+            {/* Audio button - Now also triggers Practice */}
             <Button
                 variant="secondary"
                 size="lg"
@@ -176,20 +174,39 @@ export function WordCard({
                 )}
             </Button>
 
-            {/* Progress bar */}
-            <Progress value={localReadCount} className="mb-6" />
+            {/* Practice Input while listening */}
+            <div className="mb-6 max-w-[240px] mx-auto">
+                <Input
+                    type="text"
+                    placeholder="Skriv mens du lytter..."
+                    value={practiceInput}
+                    onChange={(e) => setPracticeInput(e.target.value)}
+                    className={cn(
+                        "text-center font-medium",
+                        practiceInput && (
+                            word.text.toLowerCase().startsWith(practiceInput.toLowerCase())
+                                ? "border-green-500 focus-visible:ring-green-500 bg-green-50/50"
+                                : "border-red-500 focus-visible:ring-red-500 bg-red-50/50"
+                        )
+                    )}
+                />
+            </div>
 
-            {/* Practice or Spelling section */}
+            {/* Progress bar */}
+            <div className="mb-6 space-y-1">
+                <Progress value={progressPercentage} />
+                <p className="text-xs text-gray-500 font-medium">
+                    {localReadCount} / 5 læst
+                </p>
+            </div>
+
+            {/* Spelling section or just empty/status if practicing */}
             {canPractice ? (
-                <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={handleReadIt}
-                    disabled={isLoading}
-                    className="w-full"
-                >
-                    {isLoading ? "Gemmer..." : "Jeg læste det! 📖"}
-                </Button>
+                // "Jeg læste det" button REMOVED. 
+                // We show nothing here, or maybe a hint?
+                <p className="text-gray-500 italic text-sm">
+                    Klik på "Lyt" for at øve ordet
+                </p>
             ) : needsSpelling && showSpelling ? (
                 <div className="space-y-4">
                     <p className="text-lg text-gray-700 font-medium">

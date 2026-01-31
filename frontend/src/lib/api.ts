@@ -87,3 +87,10 @@ export async function getProgress(): Promise<UserProgress> {
 export async function getBadges(): Promise<Badge[]> {
     return fetchApi<Badge[]>("/api/badges");
 }
+
+// Reset all progress
+export async function resetProgress(): Promise<{ success: boolean; message: string }> {
+    return fetchApi("/api/progress/reset", {
+        method: "POST",
+    });
+}

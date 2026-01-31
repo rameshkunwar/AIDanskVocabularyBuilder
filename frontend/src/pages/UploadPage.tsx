@@ -144,11 +144,16 @@ export function UploadPage() {
 
                     <div className="p-6">
                         {uploadMutation.isPending && (
-                            <div className="flex items-center justify-center gap-3 py-8">
-                                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-                                <span className="text-lg text-gray-600">
-                                    Finder ord i billedet...
-                                </span>
+                            <div className="flex flex-col items-center justify-center gap-4 py-8">
+                                <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
+                                <div className="text-center">
+                                    <span className="text-lg font-medium text-gray-700 block mb-1">
+                                        Finder ord i billedet...
+                                    </span>
+                                    <span className="text-sm text-gray-500">
+                                        Dette kan tage op til 30 sekunder. Vi bruger AI til at finde de bedste ord! 🤖
+                                    </span>
+                                </div>
                             </div>
                         )}
 
@@ -160,6 +165,9 @@ export function UploadPage() {
                                 <p className="text-red-600 font-medium mb-4">
                                     Hov, noget gik galt!
                                 </p>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    {uploadMutation.error?.message || "Kunne ikke uploade billedet."}
+                                </p>
                                 <Button variant="outline" onClick={handleReset}>
                                     Prøv igen
                                 </Button>
@@ -167,37 +175,60 @@ export function UploadPage() {
                         )}
 
                         {uploadMutation.isSuccess && extractedWords.length > 0 && (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-green-600">
-                                    <Check className="w-6 h-6" />
-                                    <span className="font-medium text-lg">
-                                        Vi fandt {extractedWords.length} ord!
-                                    </span>
+                            <div className="space-y-6">
+                                <div className="flex flex-col items-center justify-center text-center gap-2">
+                                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                                        <Check className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800">
+                                        Succes! Vi fandt {extractedWords.length} ord
+                                    </h3>
+                                    <p className="text-gray-600 text-sm">
+                                        Her er ordene fra din bogside. De er nu klar til at blive øvet.
+                                    </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                     {extractedWords.map((word) => (
                                         <div
                                             key={word.id}
-                                            className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 text-center"
+                                            className="bg-purple-50/50 border border-purple-100 rounded-lg p-3 hover:bg-purple-50 transition-colors text-left"
                                         >
-                                            <p className="font-bold text-purple-700">{word.text}</p>
-                                            <p className="text-xs text-gray-500 truncate">
-                                                {word.definition}
-                                            </p>
+                                            <div className="flex justify-between items-start">
+                                                <p className="font-bold text-purple-900">{word.text}</p>
+                                                {word.mastered && (
+                                                    <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
+                                                        Mestret
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {word.definition && (
+                                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                                    {word.definition}
+                                                </p>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
 
-                                <Button
-                                    variant="primary"
-                                    size="lg"
-                                    className="w-full"
-                                    onClick={() => (window.location.href = "/")}
-                                >
-                                    <BookOpen className="w-5 h-5" />
-                                    Start at øve!
-                                </Button>
+                                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                    <Button
+                                        variant="primary"
+                                        size="lg"
+                                        className="flex-1"
+                                        onClick={() => (window.location.href = "/")}
+                                    >
+                                        <BookOpen className="w-5 h-5 mr-2" />
+                                        Start at øve nu
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        onClick={handleReset}
+                                    >
+                                        Upload ny side
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>

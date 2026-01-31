@@ -50,7 +50,7 @@ async def extract_words_with_gemini(image_bytes: bytes, mime_type: str = "image/
     image_part = {"mime_type": mime_type, "data": image_bytes}
     
     prompt = """Analyze this image of a Danish book page. 
-Extract at least 5 educational Danish words. 
+Extract all educational and interesting Danish words (aim for around 20-30 words if available). 
 For each word, provide a simple 1-sentence Danish definition for a 3rd grade child.
 
 Return ONLY a JSON array of objects, with no other text:
@@ -81,7 +81,7 @@ async def extract_words_with_ollama(image_bytes: bytes, mime_type: str) -> list[
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     
     prompt = """Analyze this Danish book page. 
-Extract 5-10 interesting Danish words.
+Extract all interesting and educational Danish words (aim for 20-30 words).
 Provide a simple Danish definition for each (3rd grade level).
 Return ONLY valid JSON like this:
 [{"word": "eksempel", "definition": "En forklaring."}]"""
@@ -142,7 +142,7 @@ async def get_word_definition(word: str) -> Optional[str]:
 
     if LLM_PROVIDER == "ollama":
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 res = await client.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False})
                 return res.json().get("response", "").strip()
         except: return None

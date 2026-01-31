@@ -179,13 +179,51 @@ async def upload_image(file: UploadFile = File(...)):
         
         session.commit()
         source_id = source.id
+        
+        # Get the full word objects to return
+        added_words = []
+        for item in extracted:
+            word_text = item.get("word", "").lower().strip()
+            if not word_text: continue
+            
+            w = session.exec(select(Word).where(Word.text == word_text)).first()
+            if w:
+                added_words.append({
+                    "id": w.id,
+                    "text": w.text,
+                    "definition": w.definition,
+                    "read_count": w.read_count,
+                    "spelling_verified": w.spelling_verified,
+                    "mastered": w.mastered
+                })
     
     return {
         "success": True,
         "words_extracted": len(extracted),
         "words_added": words_added,
-        "source_id": source_id
+        "source_id": source_id,
+        "words": added_words
     }
+
+
+@router.get("/words", response_model=list[WordResponse])
+async def get_all_words():
+    """
+    Get all words in the database.
+    """
+    with get_session() as session:
+        words = session.exec(select(Word)).all()
+        return [
+            WordResponse(
+                id=w.id,
+                text=w.text,
+                definition=w.definition,
+                read_count=w.read_count,
+                spelling_verified=w.spelling_verified,
+                mastered=w.mastered
+            )
+            for w in words
+        ]
 
 
 @router.get("/words/next", response_model=list[WordResponse])
@@ -445,3 +483,39 @@ async def get_all_badges():
             }
             for b in badges
         ]
+
+
+@router.post("/progress/reset")
+async def reset_progress():
+    """
+    Reset all progress:
+    - Clear read_count, spelling_verified, mastered on ALL words
+    - Reset user progress (points, streak, badges)
+    """
+    with get_session() as session:
+        # 1. Reset words
+        words = session.exec(select(Word)).all()
+        for word in words:
+            word.read_count = 0
+            word.mastered = False
+            word.spelling_verified = False
+            word.last_practiced = None
+            session.add(word)
+        
+        # 2. Reset progress
+        progress = get_or_create_progress(session)
+        progress.total_points = 0
+        progress.words_mastered = 0
+        progress.spelling_streak = 0
+        progress.badges = "[]"
+        progress.last_practice_date = None
+        session.add(progress)
+        
+        # 3. Clear existing practice records (optional but cleaner)
+        session.exec(select(Practiced)).all()
+        # Note: SQLModel doesn't support bulk delete easily this way without raw SQL
+        # For now we'll just keep the history but reset the active counters
+        
+        session.commit()
+    
+    return {"success": True, "message": "Progress reset successfully"}

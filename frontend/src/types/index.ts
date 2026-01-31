@@ -30,8 +30,11 @@ export interface Badge {
 }
 
 export interface ExtractedWordsResponse {
+    success: boolean;
+    words_extracted: number;
+    words_added: number;
+    source_id: number;
     words: Word[];
-    message: string;
 }
 
 export interface PracticeResponse {
