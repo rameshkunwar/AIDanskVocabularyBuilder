@@ -16,11 +16,11 @@ export interface UserProgress {
     total_points: number;
     words_mastered: number;
     spelling_streak: number;
-    badges: string[];
+    badges: number[];
 }
 
 export interface Badge {
-    id: string;
+    id: number;
     name: string;
     emoji: string;
     description: string;

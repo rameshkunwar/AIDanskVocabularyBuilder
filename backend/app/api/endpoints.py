@@ -42,10 +42,10 @@ class SpellingVerifyResponse(BaseModel):
 
 class ProgressResponse(BaseModel):
     total_words: int
-    mastered_words: int
+    words_mastered: int
     in_progress_words: int
     total_points: int
-    badges: list[dict]
+    badges: list[int]
     spelling_streak: int
 
 
@@ -442,25 +442,15 @@ async def get_progress():
         mastered_words = [w for w in total_words if w.mastered]
         in_progress = [w for w in total_words if not w.mastered and w.read_count > 0]
         
-        # Get earned badges
-        badge_ids = json.loads(progress.badges)
-        badges = []
-        for badge_id in badge_ids:
-            badge = session.get(Badge, badge_id)
-            if badge:
-                badges.append({
-                    "id": badge.id,
-                    "name": badge.name,
-                    "emoji": badge.emoji,
-                    "description": badge.description
-                })
+        # Get earned badges IDs
+        earned_badge_ids = json.loads(progress.badges)
         
         return ProgressResponse(
             total_words=len(total_words),
-            mastered_words=len(mastered_words),
+            words_mastered=len(mastered_words),
             in_progress_words=len(in_progress),
             total_points=progress.total_points,
-            badges=badges,
+            badges=earned_badge_ids,
             spelling_streak=progress.spelling_streak
         )
 

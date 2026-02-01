@@ -42,25 +42,25 @@ export function ProgressPage() {
                 <StatCard
                     icon={<Star className="w-8 h-8" />}
                     label="Point"
-                    value={progress?.total_points.toLocaleString("da-DK") || "0"}
+                    value={progress?.total_points?.toLocaleString("da-DK") ?? "0"}
                     color="yellow"
                 />
                 <StatCard
                     icon={<BookCheck className="w-8 h-8" />}
                     label="Ord mestret"
-                    value={progress?.words_mastered.toString() || "0"}
+                    value={progress?.words_mastered?.toString() ?? "0"}
                     color="green"
                 />
                 <StatCard
                     icon={<Flame className="w-8 h-8" />}
                     label="Stave-streak"
-                    value={progress?.spelling_streak.toString() || "0"}
+                    value={progress?.spelling_streak?.toString() ?? "0"}
                     color="orange"
                 />
                 <StatCard
                     icon={<Trophy className="w-8 h-8" />}
                     label="Badges"
-                    value={progress?.badges.length.toString() || "0"}
+                    value={progress?.badges?.length?.toString() ?? "0"}
                     color="purple"
                 />
             </div>
@@ -81,7 +81,7 @@ export function ProgressPage() {
                                     key={badge.id}
                                     badge={{
                                         ...badge,
-                                        earned: progress?.badges.includes(badge.id),
+                                        earned: progress?.badges?.includes(badge.id) ?? false,
                                     }}
                                     size="md"
                                     showDescription
