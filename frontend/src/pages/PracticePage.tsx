@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Loader2, BookOpenCheck, RotateCcw } from "lucide-react";
 import { getNextWords, getProgress, resetProgress } from "@/lib/api";
@@ -21,9 +22,12 @@ export function PracticePage() {
     const [showCelebration, setShowCelebration] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
+    const [searchParams] = useSearchParams();
+    const collectionId = searchParams.get("collection_id") ? parseInt(searchParams.get("collection_id")!) : undefined;
+
     const { data: allWords = [], isLoading: isLoadingWords } = useQuery({
-        queryKey: ["words", "next"],
-        queryFn: getNextWords,
+        queryKey: ["words", "next", collectionId],
+        queryFn: () => getNextWords(collectionId),
     });
 
     // Filter out mastered words from the practice queue
@@ -181,7 +185,9 @@ export function PracticePage() {
                 {/* Header with points */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800">Øv dine ord</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">
+                            {collectionId ? "Øv din samling" : "Øv dine ord"}
+                        </h2>
                         <p className="text-gray-600">
                             Ord {currentIndex + 1} af {practiceQueue.length}
                         </p>

@@ -4,13 +4,13 @@ API Endpoints for AIDanskVocabularyBuilder
 import json
 from datetime import datetime, date
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import select
 
 from app.db import get_session
-from app.models import Word, Source, Practiced, UserProgress, Badge
+from app.models import Word, Source, Practiced, UserProgress, Badge, Collection
 from app.llm_adapter import extract_words_from_image, get_next_words_to_practice
 from app.tts import get_audio
 from app.extractor import estimate_syllables
@@ -56,6 +56,18 @@ class WordResponse(BaseModel):
     read_count: int
     spelling_verified: bool
     mastered: bool
+    collection_id: Optional[int] = None
+
+
+class CollectionResponse(BaseModel):
+    id: int
+    name: str
+    created_at: str
+    updated_at: str
+
+
+class CollectionCreate(BaseModel):
+    name: str
 
 
 # ============ Helper Functions ============
@@ -101,10 +113,35 @@ def check_and_award_badges(session, progress: UserProgress) -> Optional[str]:
     return new_badge
 
 
+# ============ Collection Endpoints ============
+
+@router.get("/collections", response_model=list[CollectionResponse])
+async def get_collections():
+    """Get all collections"""
+    with get_session() as session:
+        collections = session.exec(select(Collection)).all()
+        return collections
+
+
+@router.post("/collections", response_model=CollectionResponse)
+async def create_collection(collection: CollectionCreate):
+    """Create a new collection"""
+    with get_session() as session:
+        db_collection = Collection(name=collection.name)
+        session.add(db_collection)
+        session.commit()
+        session.refresh(db_collection)
+        return db_collection
+
+
 # ============ Endpoints ============
 
 @router.post("/upload-image")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    collection_id: Optional[int] = Form(None),
+    collection_name: Optional[str] = Form(None)
+):
     """
     Upload a book page image, extract words using LLM.
     """
@@ -140,9 +177,26 @@ async def upload_image(file: UploadFile = File(...)):
     
     # Save source
     with get_session() as session:
+        # Determine collection
+        target_collection_id = collection_id
+        if not target_collection_id and collection_name:
+            # Create a new collection if name provided
+            new_col = Collection(name=collection_name)
+            session.add(new_col)
+            session.commit()
+            session.refresh(new_col)
+            target_collection_id = new_col.id
+        
+        if not target_collection_id:
+            # Fallback to Initial Collection
+            initial = session.exec(select(Collection).where(Collection.name == "Initial Collection")).first()
+            if initial:
+                target_collection_id = initial.id
+
         source = Source(
             name=file.filename or "uploaded_image",
-            path=file_path
+            path=file_path,
+            collection_id=target_collection_id
         )
         session.add(source)
         session.commit()
@@ -165,6 +219,9 @@ async def upload_image(file: UploadFile = File(...)):
                 existing.freq += 1
                 if not existing.definition and item.get("definition"):
                     existing.definition = item["definition"]
+                # If existing word doesn't have a collection, assign it
+                if not existing.collection_id:
+                    existing.collection_id = target_collection_id
             else:
                 # Create new word
                 word = Word(
@@ -172,6 +229,7 @@ async def upload_image(file: UploadFile = File(...)):
                     definition=item.get("definition"),
                     syllables=estimate_syllables(word_text),
                     source_id=source.id,
+                    collection_id=target_collection_id,
                     freq=1
                 )
                 session.add(word)
@@ -202,17 +260,22 @@ async def upload_image(file: UploadFile = File(...)):
         "words_extracted": len(extracted),
         "words_added": words_added,
         "source_id": source_id,
+        "collection_id": target_collection_id,
         "words": added_words
     }
 
 
 @router.get("/words", response_model=list[WordResponse])
-async def get_all_words():
+async def get_all_words(collection_id: Optional[int] = None):
     """
     Get all words in the database.
     """
     with get_session() as session:
-        words = session.exec(select(Word)).all()
+        statement = select(Word)
+        if collection_id:
+            statement = statement.where(Word.collection_id == collection_id)
+        
+        words = session.exec(statement).all()
         return [
             WordResponse(
                 id=w.id,
@@ -220,22 +283,25 @@ async def get_all_words():
                 definition=w.definition,
                 read_count=w.read_count,
                 spelling_verified=w.spelling_verified,
-                mastered=w.mastered
+                mastered=w.mastered,
+                collection_id=w.collection_id
             )
             for w in words
         ]
 
 
 @router.get("/words/next", response_model=list[WordResponse])
-async def get_next_words(limit: int = 100):
+async def get_next_words(limit: int = 100, collection_id: Optional[int] = None):
     """
     Get the next words to practice, prioritized by LLM.
     """
     with get_session() as session:
         # Get all unmastered words
-        words = session.exec(
-            select(Word).where(Word.mastered == False)
-        ).all()
+        statement = select(Word).where(Word.mastered == False)
+        if collection_id:
+            statement = statement.where(Word.collection_id == collection_id)
+            
+        words = session.exec(statement).all()
         
         if not words:
             return []
@@ -266,7 +332,8 @@ async def get_next_words(limit: int = 100):
                     definition=word.definition,
                     read_count=word.read_count,
                     spelling_verified=word.spelling_verified,
-                    mastered=word.mastered
+                    mastered=word.mastered,
+                    collection_id=word.collection_id
                 ))
         
         return result
@@ -286,7 +353,8 @@ async def get_word(word_id: int):
             definition=word.definition,
             read_count=word.read_count,
             spelling_verified=word.spelling_verified,
-            mastered=word.mastered
+            mastered=word.mastered,
+            collection_id=word.collection_id
         )
 
 

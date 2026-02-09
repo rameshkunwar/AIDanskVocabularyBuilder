@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, Check, X, BookOpen } from "lucide-react";
-import { uploadImage } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Upload, Loader2, Check, X, BookOpen, Plus, FolderOpen } from "lucide-react";
+import { uploadImage, getCollections } from "@/lib/api";
 import type { Word } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,12 +12,23 @@ export function UploadPage() {
     const [dragActive, setDragActive] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [extractedWords, setExtractedWords] = useState<Word[]>([]);
+    const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>(null);
+    const [newCollectionName, setNewCollectionName] = useState("");
+    const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false);
+    const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+
+    const { data: collections = [] } = useQuery({
+        queryKey: ["collections"],
+        queryFn: getCollections,
+    });
 
     const uploadMutation = useMutation({
-        mutationFn: uploadImage,
+        mutationFn: ({ file, collectionId, collectionName }: { file: File, collectionId?: number, collectionName?: string }) =>
+            uploadImage(file, collectionId, collectionName),
         onSuccess: (data) => {
             setExtractedWords(data.words);
             queryClient.invalidateQueries({ queryKey: ["words"] });
+            queryClient.invalidateQueries({ queryKey: ["collections"] });
         },
     });
 
@@ -53,20 +64,36 @@ export function UploadPage() {
     );
 
     const handleFile = (file: File) => {
+        setFileToUpload(file);
         // Create preview
         const reader = new FileReader();
         reader.onload = (e) => {
             setPreviewUrl(e.target?.result as string);
         };
         reader.readAsDataURL(file);
+    };
 
-        // Upload file
-        uploadMutation.mutate(file);
+    const startUpload = () => {
+        if (!fileToUpload) return;
+
+        if (isCreatingNewCollection && !newCollectionName.trim()) {
+            alert("Giv venligst den nye samling et navn.");
+            return;
+        }
+
+        uploadMutation.mutate({
+            file: fileToUpload,
+            collectionId: isCreatingNewCollection ? undefined : (selectedCollectionId || undefined),
+            collectionName: isCreatingNewCollection ? newCollectionName : undefined
+        });
     };
 
     const handleReset = () => {
         setPreviewUrl(null);
         setExtractedWords([]);
+        setFileToUpload(null);
+        setIsCreatingNewCollection(false);
+        setNewCollectionName("");
         uploadMutation.reset();
     };
 
@@ -132,7 +159,7 @@ export function UploadPage() {
                         <img
                             src={previewUrl}
                             alt="Uploaded book page"
-                            className="w-full h-64 object-cover rounded-t-2xl"
+                            className="w-full h-64 object-cover"
                         />
                         <button
                             onClick={handleReset}
@@ -141,6 +168,86 @@ export function UploadPage() {
                             <X className="w-5 h-5 text-gray-600" />
                         </button>
                     </div>
+
+                    {!uploadMutation.isPending && !uploadMutation.isSuccess && !uploadMutation.isError && (
+                        <div className="p-8 bg-purple-50/50 border-t border-purple-100 flex flex-col items-center justify-center">
+                            <div className="w-full max-w-md space-y-6">
+                                <div className="text-center">
+                                    <h3 className="text-xl font-bold text-gray-800">Hvor skal billedet gemmes? 💾</h3>
+                                    <p className="text-gray-600 text-sm mt-1">
+                                        Vælg en samling eller lav en ny til dine ord.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex p-1 bg-white border border-gray-200 rounded-xl">
+                                        <button
+                                            onClick={() => setIsCreatingNewCollection(false)}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
+                                                !isCreatingNewCollection
+                                                    ? "bg-purple-100 text-purple-700 shadow-sm"
+                                                    : "text-gray-500 hover:text-gray-700"
+                                            )}
+                                        >
+                                            <FolderOpen className="w-4 h-4" />
+                                            Eksisterende
+                                        </button>
+                                        <button
+                                            onClick={() => setIsCreatingNewCollection(true)}
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
+                                                isCreatingNewCollection
+                                                    ? "bg-purple-100 text-purple-700 shadow-sm"
+                                                    : "text-gray-500 hover:text-gray-700"
+                                            )}
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            Ny Samling
+                                        </button>
+                                    </div>
+
+                                    {isCreatingNewCollection ? (
+                                        <div className="space-y-2 animate-fade-in">
+                                            <label className="text-sm font-medium text-gray-700 ml-1">Samlingens navn</label>
+                                            <input
+                                                type="text"
+                                                placeholder="F.eks. Kapittel 1, Min yndlingsbog..."
+                                                value={newCollectionName}
+                                                onChange={(e) => setNewCollectionName(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 animate-fade-in">
+                                            <label className="text-sm font-medium text-gray-700 ml-1">Vælg samling</label>
+                                            <select
+                                                value={selectedCollectionId || ""}
+                                                onChange={(e) => setSelectedCollectionId(e.target.value ? parseInt(e.target.value) : null)}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white transition-all shadow-sm appearance-none cursor-pointer"
+                                            >
+                                                <option value="">Vælg en samling...</option>
+                                                {collections.map((col) => (
+                                                    <option key={col.id} value={col.id}>
+                                                        {col.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        variant="primary"
+                                        size="lg"
+                                        className="w-full py-6 text-lg font-bold shadow-lg shadow-purple-200"
+                                        onClick={startUpload}
+                                    >
+                                        Start scanning 🚀
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="p-6">
                         {uploadMutation.isPending && (
@@ -216,7 +323,10 @@ export function UploadPage() {
                                         variant="primary"
                                         size="lg"
                                         className="flex-1"
-                                        onClick={() => (window.location.href = "/")}
+                                        onClick={() => {
+                                            const cid = uploadMutation.data?.collection_id;
+                                            window.location.href = cid ? `/practice?collection_id=${cid}` : "/practice";
+                                        }}
                                     >
                                         <BookOpen className="w-5 h-5 mr-2" />
                                         Start at øve nu

@@ -5,6 +5,7 @@ import type {
     ExtractedWordsResponse,
     PracticeResponse,
     SpellingVerifyResponse,
+    Collection,
 } from "@/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -29,9 +30,15 @@ async function fetchApi<T>(
 }
 
 // Upload image and extract words
-export async function uploadImage(file: File): Promise<ExtractedWordsResponse> {
+export async function uploadImage(
+    file: File,
+    collectionId?: number,
+    collectionName?: string
+): Promise<ExtractedWordsResponse> {
     const formData = new FormData();
     formData.append("file", file);
+    if (collectionId) formData.append("collection_id", collectionId.toString());
+    if (collectionName) formData.append("collection_name", collectionName);
 
     const response = await fetch(`${API_BASE_URL}/api/upload-image`, {
         method: "POST",
@@ -46,8 +53,11 @@ export async function uploadImage(file: File): Promise<ExtractedWordsResponse> {
 }
 
 // Get next words to practice
-export async function getNextWords(): Promise<Word[]> {
-    return fetchApi<Word[]>("/api/words/next");
+export async function getNextWords(collectionId?: number): Promise<Word[]> {
+    const url = collectionId
+        ? `/api/words/next?collection_id=${collectionId}`
+        : "/api/words/next";
+    return fetchApi<Word[]>(url);
 }
 
 // Get specific word details
@@ -86,6 +96,19 @@ export async function getProgress(): Promise<UserProgress> {
 // Get all badges
 export async function getBadges(): Promise<Badge[]> {
     return fetchApi<Badge[]>("/api/badges");
+}
+
+// Get all collections
+export async function getCollections(): Promise<Collection[]> {
+    return fetchApi<Collection[]>("/api/collections");
+}
+
+// Create a new collection
+export async function createCollection(name: string): Promise<Collection> {
+    return fetchApi<Collection>("/api/collections", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+    });
 }
 
 // Reset all progress

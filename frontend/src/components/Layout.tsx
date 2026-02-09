@@ -12,7 +12,7 @@ export function Layout() {
                         📚 Danske Ord
                     </h1>
                     <nav className="flex gap-2">
-                        <NavItem to="/" icon={<BookOpen className="w-5 h-5" />} label="Øv" />
+                        <NavItem to="/" icon={<BookOpen className="w-5 h-5" />} label="Samlinger" />
                         <NavItem
                             to="/upload"
                             icon={<Upload className="w-5 h-5" />}

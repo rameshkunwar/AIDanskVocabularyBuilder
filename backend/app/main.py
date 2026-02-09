@@ -30,11 +30,61 @@ async def lifespan(app: FastAPI):
     
     # Seed default badges if not exist
     with get_session() as session:
+        from sqlmodel import select, text
+        from app.models import Collection, Word, Source
+        
+        # 0. Ensure schema is up to date (Migration for Collection feature)
+        # Adding columns if they don't exist (PostgreSQL specific check)
+        try:
+            # Check and add for Word table
+            session.exec(text("ALTER TABLE word ADD COLUMN IF NOT EXISTS collection_id INTEGER REFERENCES collection(id)"))
+            # Check and add for Source table
+            session.exec(text("ALTER TABLE source ADD COLUMN IF NOT EXISTS collection_id INTEGER REFERENCES collection(id)"))
+            session.commit()
+        except Exception as e:
+            # SQLite doesn't support ADD COLUMN IF NOT EXISTS or it might already be there
+            session.rollback()
+            print(f"Migration notice: {e}")
+        
+        # 0.5 Synchronize PostgreSQL sequences (fixes UniqueViolation errors after migration)
+        # This is necessary if IDs were manually inserted or tables were migrated without updating sequences
+        try:
+            for table in ["collection", "word", "source", "practiced", "userprogress", "badge"]:
+                # Use COALESCE to handle empty tables, and setval to the max ID
+                session.exec(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM \"{table}\""))
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            # This will fail on SQLite (no pg_get_serial_sequence), which is expected
+            if "postgresql" in str(e).lower():
+                print(f"Sequence sync error: {e}")
+        
+        # 1. Create default collection if none exist
+        initial_collection = session.exec(select(Collection).where(Collection.name == "Initial Collection")).first()
+        if not initial_collection:
+            initial_collection = Collection(name="Initial Collection")
+            session.add(initial_collection)
+            session.commit()
+            session.refresh(initial_collection)
+        
+        # 2. Migrate existing words/sources to Initial Collection if they don't have one
+        unassigned_words = session.exec(select(Word).where(Word.collection_id == None)).all()
+        for word in unassigned_words:
+            word.collection_id = initial_collection.id
+            session.add(word)
+            
+        unassigned_sources = session.exec(select(Source).where(Source.collection_id == None)).all()
+        for source in unassigned_sources:
+            source.collection_id = initial_collection.id
+            session.add(source)
+            
+        # 3. Seed badges
         existing_badges = session.query(Badge).count()
         if existing_badges == 0:
             for badge in DEFAULT_BADGES:
                 session.add(badge)
-            session.commit()
+        
+        session.commit()
     
     yield
     

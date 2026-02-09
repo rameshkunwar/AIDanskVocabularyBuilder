@@ -10,6 +10,14 @@ export interface Word {
     source_id?: number;
     syllables?: string;
     difficulty_score?: number;
+    collection_id?: number;
+}
+
+export interface Collection {
+    id: number;
+    name: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface UserProgress {
@@ -34,6 +42,7 @@ export interface ExtractedWordsResponse {
     words_extracted: number;
     words_added: number;
     source_id: number;
+    collection_id?: number;
     words: Word[];
 }
 
