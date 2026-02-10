@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Volume2, VolumeX, Check, Sparkles } from "lucide-react";
 import type { Word } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -31,48 +31,57 @@ export function WordCard({
     const [practiceInput, setPracticeInput] = useState("");
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    // Sync state with word prop
+    useEffect(() => {
+        setLocalReadCount(word.read_count);
+        setShowSpelling(word.read_count >= 5);
+    }, [word.read_count]);
+
     const canPractice = localReadCount < 5;
     const needsSpelling = localReadCount >= 5 && !word.spelling_verified;
 
     const handlePlayAudio = async () => {
         const ttsUrl = getWordTTSUrl(word.id);
 
-        // --- PRACTICE/READ LOGIC MERGED HERE ---
+        if (isPlaying) {
+            audioRef.current?.pause();
+            setIsPlaying(false);
+            return;
+        }
+
+        // --- PRACTICE/READ LOGIC ---
+        // Increment ONLY when starting audio and NOT yet mastered (max 5)
         if (canPractice && !isLoading) {
             // Optimistic update
             const previousCount = localReadCount;
-            const newCount = localReadCount + 1;
+            const newCount = Math.min(5, localReadCount + 1);
             setLocalReadCount(newCount);
 
             // Update parent immediately
             onWordUpdate?.({
                 ...word,
                 read_count: newCount,
-                mastered: newCount >= 5 ? word.mastered : false
+                mastered: newCount >= 5 ? word.mastered : false,
             });
 
             // Fire and forget (mostly) background sync
-            practiceWord(word.id).then(response => {
-                if (response.word.read_count >= 5) {
-                    setShowSpelling(true);
-                }
-                response.badges_earned?.forEach((badge) => {
-                    onBadgeEarned?.({ emoji: badge.emoji, name: badge.name });
+            practiceWord(word.id)
+                .then((response) => {
+                    if (response.word.read_count >= 5) {
+                        setShowSpelling(true);
+                    }
+                    response.badges_earned?.forEach((badge) => {
+                        onBadgeEarned?.({ emoji: badge.emoji, name: badge.name });
+                    });
+                    onPointsEarned?.(response.points_earned);
+                })
+                .catch((err) => {
+                    console.error("Error recording practice:", err);
+                    setLocalReadCount(previousCount);
+                    onWordUpdate?.(word);
                 });
-                onPointsEarned?.(response.points_earned);
-            }).catch(err => {
-                console.error("Error recording practice:", err);
-                setLocalReadCount(previousCount);
-                onWordUpdate?.(word);
-            });
         }
-        // ---------------------------------------
-
-        if (isPlaying) {
-            audioRef.current?.pause();
-            setIsPlaying(false);
-            return;
-        }
+        // ---------------------------
 
         try {
             if (!audioRef.current) {

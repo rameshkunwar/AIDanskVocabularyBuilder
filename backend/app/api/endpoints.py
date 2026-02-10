@@ -20,12 +20,24 @@ router = APIRouter()
 
 # ============ Pydantic Models ============
 
+class WordResponse(BaseModel):
+    id: int
+    text: str
+    definition: Optional[str]
+    read_count: int
+    spelling_verified: bool
+    mastered: bool
+    collection_id: Optional[int] = None
+
+
 class PracticeResponse(BaseModel):
     success: bool
-    read_count: int
+    word: WordResponse
     ready_for_spelling: bool
     points_earned: int
+    new_total_points: int
     message: str
+    badges_earned: Optional[list[Badge]] = None
 
 
 class SpellingVerifyRequest(BaseModel):
@@ -34,9 +46,11 @@ class SpellingVerifyRequest(BaseModel):
 
 class SpellingVerifyResponse(BaseModel):
     correct: bool
-    mastered: bool
+    word: WordResponse
     points_earned: int
+    new_total_points: int
     badge_earned: Optional[str] = None
+    badges_earned: Optional[list[Badge]] = None
     message: str
 
 
@@ -49,21 +63,12 @@ class ProgressResponse(BaseModel):
     spelling_streak: int
 
 
-class WordResponse(BaseModel):
-    id: int
-    text: str
-    definition: Optional[str]
-    read_count: int
-    spelling_verified: bool
-    mastered: bool
-    collection_id: Optional[int] = None
-
-
 class CollectionResponse(BaseModel):
     id: int
     name: str
     created_at: str
     updated_at: str
+    word_count: int = 0
 
 
 class CollectionCreate(BaseModel):
@@ -120,7 +125,22 @@ async def get_collections():
     """Get all collections"""
     with get_session() as session:
         collections = session.exec(select(Collection)).all()
-        return collections
+        result = []
+        for col in collections:
+            # Count words for this collection
+            # col.words is a Relationship, so we can access it if the session is still open
+            # or we can query directly for efficiency
+            word_count = len(col.words)
+            result.append(
+                CollectionResponse(
+                    id=col.id,
+                    name=col.name,
+                    created_at=col.created_at,
+                    updated_at=col.updated_at,
+                    word_count=word_count,
+                )
+            )
+        return result
 
 
 @router.post("/collections", response_model=CollectionResponse)
@@ -399,9 +419,18 @@ async def practice_word(word_id: int):
         
         return PracticeResponse(
             success=True,
-            read_count=word.read_count,
+            word=WordResponse(
+                id=word.id,
+                text=word.text,
+                definition=word.definition,
+                read_count=word.read_count,
+                spelling_verified=word.spelling_verified,
+                mastered=word.mastered,
+                collection_id=word.collection_id
+            ),
             ready_for_spelling=ready_for_spelling,
             points_earned=points,
+            new_total_points=progress.total_points,
             message="Godt læst!" if word.read_count < 5 else "Klar til at stave! 📝"
         )
 
@@ -449,8 +478,17 @@ async def verify_spelling(word_id: int, request: SpellingVerifyRequest):
             
             return SpellingVerifyResponse(
                 correct=True,
-                mastered=True,
+                word=WordResponse(
+                    id=word.id,
+                    text=word.text,
+                    definition=word.definition,
+                    read_count=word.read_count,
+                    spelling_verified=word.spelling_verified,
+                    mastered=word.mastered,
+                    collection_id=word.collection_id
+                ),
                 points_earned=points,
+                new_total_points=progress.total_points,
                 badge_earned=badge_earned,
                 message="Perfekt! 🎉 Du har mestret dette ord!"
             )
@@ -461,8 +499,17 @@ async def verify_spelling(word_id: int, request: SpellingVerifyRequest):
             
             return SpellingVerifyResponse(
                 correct=False,
-                mastered=False,
+                word=WordResponse(
+                    id=word.id,
+                    text=word.text,
+                    definition=word.definition,
+                    read_count=word.read_count,
+                    spelling_verified=word.spelling_verified,
+                    mastered=word.mastered,
+                    collection_id=word.collection_id
+                ),
                 points_earned=0,
+                new_total_points=progress.total_points,
                 message="Prøv igen! 💪"
             )
 

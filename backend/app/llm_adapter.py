@@ -49,14 +49,24 @@ async def extract_words_with_gemini(image_bytes: bytes, mime_type: str = "image/
     model = get_model()
     image_part = {"mime_type": mime_type, "data": image_bytes}
     
-    prompt = """Analyze this image of a Danish book page. 
-Extract all educational and interesting Danish words (aim for around 20-30 words if available). 
-For each word, provide a simple 1-sentence Danish definition for a 3rd grade child.
+    prompt = """Analyze this image of a Danish book page.
 
-Return ONLY a JSON array of objects, with no other text:
+     Extract a comprehensive list of educational, descriptive, and interesting Danish words (aim for 20-30 words if the text allows).
+
+STRICT EXCLUSION CRITERIA:
+- Do NOT include common high-frequency stopwords, articles, prepositions, or simple pronouns.
+- Specifically avoid words like: "at", "for", "en", "et", "og", "men", "eller", "det", "den", "de", "er", "var", "har", "jeg", "du", "vi", "her", "der".
+- Focus instead on nouns, distinct verbs, and adjectives that add meaning to the text.
+
+For each extracted word, provide a simple 1-sentence Danish definition suitable for a 3rd-grade child.
+
+Return ONLY a valid JSON array of objects, with no other text or markdown formatting:
 [
-  {"word": "eksempel", "definition": "En forklaring der viser hvordan noget virker."}
-]"""
+  {"word": "eksempel", "definition": "En forklaring der viser hvordan noget virker."},
+  {"word": "eventyr", "definition": "En spændende historie der ofte handler om magi og helte."}
+]
+    
+    """
 
     try:
         print(f"DEBUG: Processing image with Gemini. MIME: {mime_type}, Size: {len(image_bytes)} bytes")
@@ -80,11 +90,22 @@ async def extract_words_with_ollama(image_bytes: bytes, mime_type: str) -> list[
     # Ollama expects base64 for images
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     
-    prompt = """Analyze this Danish book page. 
-Extract all interesting and educational Danish words (aim for 20-30 words).
-Provide a simple Danish definition for each (3rd grade level).
-Return ONLY valid JSON like this:
-[{"word": "eksempel", "definition": "En forklaring."}]"""
+    prompt = """Analyze this image of a Danish book page.
+
+     Extract a comprehensive list of educational, descriptive, and interesting Danish words (aim for 20-30 words if the text allows).
+
+STRICT EXCLUSION CRITERIA:
+- Do NOT include common high-frequency stopwords, articles, prepositions, or simple pronouns.
+- Specifically avoid words like: "at", "for", "en", "et", "og", "men", "eller", "det", "den", "de", "er", "var", "har", "jeg", "du", "vi", "her", "der".
+- Focus instead on nouns, distinct verbs, and adjectives that add meaning to the text.
+
+For each extracted word, provide a simple 1-sentence Danish definition suitable for a 3rd-grade child.
+
+Return ONLY a valid JSON array of objects, with no other text or markdown formatting:
+[
+  {"word": "eksempel", "definition": "En forklaring der viser hvordan noget virker."},
+  {"word": "eventyr", "definition": "En spændende historie der ofte handler om magi og helte."}
+]"""
 
     payload = {
         "model": OLLAMA_MODEL,
@@ -143,22 +164,27 @@ async def get_word_definition(word: str) -> Optional[str]:
     if LLM_PROVIDER == "ollama":
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                res = await client.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False})
+                res = await client.post(
+                    OLLAMA_URL,
+                    json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+                )
                 return res.json().get("response", "").strip()
-        except: return None
-    
+        except Exception:
+            return None
+
     try:
         model = get_model()
         response = model.generate_content(prompt)
         return response.text.strip()
-    except:
+    except Exception:
         return None
 
 
 async def get_next_words_to_practice(words: list[dict], limit: int = 5) -> list[int]:
     """Prioritize words using current provider"""
     unmastered = [w for w in words if not w.get("mastered", False)]
-    if not unmastered: return []
+    if not unmastered:
+        return []
     
     # Sort initially by read count
     sorted_words = sorted(unmastered, key=lambda w: w.get("read_count", 0))

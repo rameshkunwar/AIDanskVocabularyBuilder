@@ -79,7 +79,7 @@ export async function verifySpelling(
 ): Promise<SpellingVerifyResponse> {
     return fetchApi<SpellingVerifyResponse>(`/api/words/${id}/verify-spelling`, {
         method: "POST",
-        body: JSON.stringify({ attempt }),
+        body: JSON.stringify({ spelling: attempt }),
     });
 }
 

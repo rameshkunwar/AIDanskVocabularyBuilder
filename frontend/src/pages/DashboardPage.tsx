@@ -86,6 +86,10 @@ export function DashboardPage() {
                                     </h3>
 
                                     <div className="mt-auto space-y-2">
+                                        <div className="flex items-center text-sm font-semibold text-purple-600 bg-purple-50 w-fit px-2 py-1 rounded-md mb-2">
+                                            <BookOpen className="w-4 h-4 mr-2" />
+                                            {collection.word_count} {collection.word_count === 1 ? 'ord' : 'ord'}
+                                        </div>
                                         <div className="flex items-center text-sm text-gray-500">
                                             <Calendar className="w-4 h-4 mr-2 text-purple-400" />
                                             Oprettet: {new Date(collection.created_at).toLocaleDateString('da-DK')}

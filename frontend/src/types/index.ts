@@ -18,6 +18,7 @@ export interface Collection {
     name: string;
     created_at: string;
     updated_at: string;
+    word_count: number;
 }
 
 export interface UserProgress {
