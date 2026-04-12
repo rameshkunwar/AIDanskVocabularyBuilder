@@ -6,7 +6,7 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 
 - 📚 **Book Page Upload**: Upload images of Danish book pages
 - 🤖 **AI Word Extraction**: Uses Gemini API to extract words and generate kid-friendly definitions
-- 🔊 **Text-to-Speech**: Danish pronunciation via ElevenLabs
+- 🔊 **Text-to-Speech**: Danish pronunciation via Google Gemini API
 - ⭐ **Gamification**: Points, badges, and streaks for motivation
 - ✍️ **Spelling Practice**: Type words correctly to master them
 
@@ -15,9 +15,9 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 | Component | Technology |
 |-----------|------------|
 | Frontend | React 19 + TypeScript + Tailwind CSS |
-| Backend | FastAPI + SQLModel + SQLite |
-| LLM | Google Gemini API (free tier) |
-| TTS | ElevenLabs |
+| Backend | FastAPI + SQLModel + PostgreSQL |
+| LLM | Google Gemini API |
+| TTS | Google Gemini API (gemini-2.5-flash-preview-tts) |
 
 ## Quick Start
 
