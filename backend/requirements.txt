@@ -139,3 +139,4 @@ wcwidth==0.4.0
 websockets==15.0.1
 Werkzeug==3.1.5
 psycopg2-binary==2.9.11
+pydantic-ai[logfire]==1.80.0
