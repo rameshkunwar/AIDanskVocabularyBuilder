@@ -6,7 +6,7 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 
 - 📚 **Book Page Upload**: Upload images of Danish book pages
 - 🤖 **AI Word Extraction**: Uses Pydantic AI agents to orchestrate Gemini/Ollama to strictly extract words and generate kid-friendly definitions
-- 🔊 **Text-to-Speech**: Danish pronunciation via Google Gemini API
+- 🔊 **Text-to-Speech**: Danish pronunciation via DR.dk API
 - ⭐ **Gamification**: Points, badges, and streaks for motivation
 - ✍️ **Spelling Practice**: Type words correctly to master them
 
@@ -18,7 +18,7 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 | Backend | FastAPI + SQLModel + PostgreSQL |
 | AI Framework| Pydantic AI (Structured Agents) |
 | LLM | Google Gemini API (default) / Ollama |
-| TTS | Google Gemini API (gemini-2.5-flash-preview-tts) |
+| TTS | DR.dk API |
 
 ## Quick Start
 

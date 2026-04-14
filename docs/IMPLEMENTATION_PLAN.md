@@ -10,9 +10,9 @@ A Danish vocabulary builder app for a 3rd-grade student that extracts words from
 |-------|------------|
 | **Frontend** | React 19 + React Compiler, TypeScript, Tailwind CSS v4, custom UI components |
 | **Libraries** | React Router 7, TanStack Query, Lucide React, clsx, tailwind-merge |
-| **Backend** | FastAPI, SQLModel, SQLite |
+| **Backend** | FastAPI, SQLModel, PostgreSQL |
 | **LLM** | Google Gemini API (free tier via AI Studio) |
-| **TTS** | ElevenLabs (Danish voice) |
+| **TTS** | DR.dk API (Danish voice) |
 
 ---
 
@@ -38,8 +38,8 @@ A Danish vocabulary builder app for a 3rd-grade student that extracts words from
 │           │                │                │               │
 │           ▼                ▼                ▼               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ llm_adapter  │  │     tts      │  │   SQLite     │      │
-│  │ (Gemini API) │  │ (ElevenLabs) │  │  (vocab.db)  │      │
+│  │ llm_adapter  │  │     tts      │  │ PostgreSQL   │      │
+│  │ (Gemini API) │  │  (DR.dk API) │  │              │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -116,7 +116,6 @@ pip install -r requirements.txt
 
 Add to `.env`:
 ```
-ELEVENLABS_API_KEY=your_key_here
 GEMINI_API_KEY=your_key_here  # Get free from https://aistudio.google.com
 ```
 
