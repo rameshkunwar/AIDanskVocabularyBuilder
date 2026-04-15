@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      # These pull directly from your .env file
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: danskvocab
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    restart: always
+    environment:
+      # This injects the secure variables into the connection string
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/danskvocab
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      # This is where your build arguments go!
+      context: ./frontend
+      args:
+        VITE_API_URL: https://api.ramesh.dk
+    restart: always
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - api
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

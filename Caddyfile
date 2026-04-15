@@ -1,0 +1,14 @@
+ramesh.dk {
+    # Temp message page for the root domain
+    respond "Velkommen til Ramesh.dk!"
+}
+
+danskvocab.ramesh.dk {
+    # Send users to the React frontend
+    reverse_proxy frontend:80
+}
+
+api.ramesh.dk {
+    # Send app data requests to the FastAPI backend
+    reverse_proxy api:8000
+}

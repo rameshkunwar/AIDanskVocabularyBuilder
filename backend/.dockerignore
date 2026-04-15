@@ -1,0 +1,14 @@
+.venv
+__pycache__
+*.pyc
+.env
+.git
+.gitignore
+README.md
+*.db
+*.wav
+audio_cache
+hf_cache
+uploads
+test_*.py
+update_db.py
