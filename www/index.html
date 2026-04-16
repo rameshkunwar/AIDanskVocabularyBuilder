@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ramesh.dk - Compiling Thoughts...</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ffcc;
+        }
+        p {
+            font-size: 1.2rem;
+            color: #aaaaaa;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        .highlight {
+            color: #ff00ff;
+            font-weight: bold;
+        }
+        .cursor {
+            display: inline-block;
+            width: 15px;
+            height: 30px;
+            background-color: #00ffcc;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .button {
+            margin-top: 30px;
+            padding: 12px 24px;
+            background-color: transparent;
+            border: 2px solid #00ffcc;
+            color: #00ffcc;
+            text-decoration: none;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .button:hover {
+            background-color: #00ffcc;
+            color: #121212;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ramesh.dk <span class="cursor"></span></h1>
+    <p>
+        I just successfully orchestrated a multi-container Docker network with automated Let's Encrypt SSL certificates and a reverse proxy on a Hetzner cloud server...
+    </p>
+    <p>
+        ...which means I have absolutely <span class="highlight">zero energy left</span> to write HTML for this domain.
+    </p>
+    <p>
+        A developer blog is coming here soon. <br>
+        (Or maybe in 6 months. Let's be honest with ourselves.)
+    </p>
+   
+</body>
+</html>
