@@ -34,6 +34,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # For Ollama models (which conform to the OpenAI API schema via v1 routing)
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-vl:235b-cloud")
 OLLAMA_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/generate")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "ollama")
 
 print(f"DEBUG: LLM Config - Provider: {LLM_PROVIDER}")
 
@@ -72,7 +73,7 @@ def get_vision_agent() -> Agent:
         # Pydantic AI natively interacts with standard v1 OpenAI endpoints.
         # So we adapt the standard `/api/generate` Ollama URL backwards.
         base_url = OLLAMA_URL.replace("/api/generate", "/v1")
-        provider = OpenAIProvider(base_url=base_url, api_key="ollama")
+        provider = OpenAIProvider(base_url=base_url, api_key=OLLAMA_API_KEY)
         model = OpenAIChatModel(OLLAMA_MODEL, provider=provider)
     else:
         # Default natively to the high-performance Gemini 2.0 system.
