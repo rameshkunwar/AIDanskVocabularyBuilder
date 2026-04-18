@@ -7,6 +7,7 @@ it enforces deterministic JSON output and abstracts away the underlying provider
 (e.g., Gemini vs Ollama).
 """
 
+from httpx import Timeout
 import os
 from typing import Optional
 from dotenv import load_dotenv
@@ -73,7 +74,10 @@ def get_vision_agent() -> Agent:
         # Pydantic AI natively interacts with standard v1 OpenAI endpoints.
         # So we adapt the standard `/api/generate` Ollama URL backwards.
         base_url = OLLAMA_URL.replace("/api/generate", "/v1")
-        provider = OpenAIProvider(base_url=base_url, api_key=OLLAMA_API_KEY)
+
+    # a generous timeout (360 seconds) for cloud vision tasks
+        custom_timeout = Timeout(360.0, connect=10.0)
+        provider = OpenAIProvider(base_url=base_url, api_key=OLLAMA_API_KEY, timeout=custom_timeout)
         model = OpenAIChatModel(OLLAMA_MODEL, provider=provider)
     else:
         # Default natively to the high-performance Gemini 2.0 system.
