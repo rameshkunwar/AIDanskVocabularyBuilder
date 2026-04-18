@@ -17,6 +17,8 @@ services:
     restart: always
     env_file:
       - ./backend/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # This injects the secure variables into the connection string
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/danskvocab
