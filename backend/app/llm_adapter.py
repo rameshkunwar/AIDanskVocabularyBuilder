@@ -6,8 +6,7 @@ using Pydantic AI. By defining strict structural models (WordList, DefinitionRes
 it enforces deterministic JSON output and abstracts away the underlying provider
 (e.g., Gemini vs Ollama).
 """
-
-from httpx import Timeout
+import httpx
 import os
 from typing import Optional
 from dotenv import load_dotenv
@@ -76,8 +75,14 @@ def get_vision_agent() -> Agent:
         base_url = OLLAMA_URL.replace("/api/generate", "/v1")
 
     # a generous timeout (360 seconds) for cloud vision tasks
-        custom_timeout = Timeout(360.0, connect=10.0)
-        provider = OpenAIProvider(base_url=base_url, api_key=OLLAMA_API_KEY, timeout=custom_timeout)
+        custom_http_client = httpx.AsyncClient(
+            timeout = httpx.Timeout(360.0, connect=10.0)
+        )
+        provider = OpenAIProvider(
+            base_url=base_url, 
+            api_key=OLLAMA_API_KEY, 
+            http_client=custom_http_client
+        )
         model = OpenAIChatModel(OLLAMA_MODEL, provider=provider)
     else:
         # Default natively to the high-performance Gemini 2.0 system.
@@ -146,7 +151,7 @@ async def extract_words_from_image(image_bytes: bytes, mime_type: str = "image/j
         
         # We serialize back to dictionary to maintain complete compatibility
         # with endpoints and the underlying API routes.
-        return [word.model_dump() for word in result.data.words]
+        return [word.model_dump() for word in result.output.words]
     
     except Exception as e:
         print(f"ERROR: Pydantic AI Structural Exception: {type(e).__name__}: {e}")
@@ -162,7 +167,7 @@ async def get_word_definition(word: str) -> Optional[str]:
     
     try:
         result = await agent.run(prompt)
-        return result.data.definition
+        return result.output.definition
     except Exception as e:
         print(f"ERROR: Agent definition retrieval issue: {e}")
         return None
