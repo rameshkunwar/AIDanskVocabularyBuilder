@@ -76,7 +76,8 @@ def get_vision_agent() -> Agent:
 
     # a generous timeout (360 seconds) for cloud vision tasks
         custom_http_client = httpx.AsyncClient(
-            timeout = httpx.Timeout(360.0, connect=10.0)
+            timeout = httpx.Timeout(360.0, connect=10.0),
+            follow_redirects=True
         )
         provider = OpenAIProvider(
             base_url=base_url, 
