@@ -72,7 +72,7 @@ def get_vision_agent() -> Agent:
     if LLM_PROVIDER == "ollama":
         # Pydantic AI natively interacts with standard v1 OpenAI endpoints.
         # So we adapt the standard `/api/generate` Ollama URL backwards.
-        base_url = OLLAMA_URL.replace("/api/generate", "/v1")
+        base_url = "https://api.ollama.com/v1"  # OLLAMA_URL.replace("/api/generate", "/v1")
 
     # a generous timeout (360 seconds) for cloud vision tasks
         custom_http_client = httpx.AsyncClient(
