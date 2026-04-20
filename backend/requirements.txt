@@ -5,7 +5,7 @@ google-generativeai
 httpx
 nltk
 pydantic
-pydantic-ai
+pydantic-ai>=1.84.0
 sqlmodel
 python-multipart
 psycopg2-binary
