@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.models.ollama import OllamaModel
+from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.messages import BinaryImage
 
 # ---------------------------------------------------------
@@ -31,9 +31,9 @@ load_dotenv(dotenv_path=env_path)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# For Ollama models (which conform to the OpenAI API schema via v1 routing)
+# For Ollama models (native Pydantic AI OllamaModel + OllamaProvider)
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-vl:235b-cloud")
-OLLAMA_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/generate")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "ollama")
 
 print(f"DEBUG: LLM Config - Provider: {LLM_PROVIDER}")
@@ -70,21 +70,17 @@ def get_vision_agent() -> Agent:
     the `WordList` schema without hallucination.
     """
     if LLM_PROVIDER == "ollama":
-        # Pydantic AI natively interacts with standard v1 OpenAI endpoints.
-        # So we adapt the standard `/api/generate` Ollama URL backwards.
-        base_url = "https://api.ollama.com/v1"  # OLLAMA_URL.replace("/api/generate", "/v1")
-
-    # a generous timeout (360 seconds) for cloud vision tasks
+        # Native Pydantic AI Ollama integration with generous timeout for cloud vision tasks
         custom_http_client = httpx.AsyncClient(
-            timeout = httpx.Timeout(360.0, connect=10.0),
+            timeout=httpx.Timeout(360.0, connect=10.0),
             follow_redirects=True
         )
-        provider = OpenAIProvider(
-            base_url=base_url, 
-            api_key=OLLAMA_API_KEY, 
+        provider = OllamaProvider(
+            base_url=OLLAMA_BASE_URL,
+            api_key=OLLAMA_API_KEY,
             http_client=custom_http_client
         )
-        model = OpenAIChatModel(OLLAMA_MODEL, provider=provider)
+        model = OllamaModel(OLLAMA_MODEL, provider=provider)
     else:
         # Default natively to the high-performance Gemini 2.0 system.
         # The GEMINI_API_KEY environment variable is automatically detected by GoogleModel.
@@ -99,9 +95,11 @@ def get_text_agent() -> Agent:
     like single dictionary definitions.
     """
     if LLM_PROVIDER == "ollama":
-        base_url = OLLAMA_URL.replace("/api/generate", "/v1")
-        provider = OpenAIProvider(base_url=base_url, api_key="ollama")
-        model = OpenAIChatModel(OLLAMA_MODEL, provider=provider)
+        provider = OllamaProvider(
+            base_url=OLLAMA_BASE_URL,
+            api_key=OLLAMA_API_KEY
+        )
+        model = OllamaModel(OLLAMA_MODEL, provider=provider)
     else:
         model = GoogleModel("gemini-2.0-flash")
         
