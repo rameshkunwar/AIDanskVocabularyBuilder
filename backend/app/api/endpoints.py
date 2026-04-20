@@ -4,7 +4,7 @@ API Endpoints for AIDanskVocabularyBuilder
 import json
 from datetime import datetime, date
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel import select
@@ -158,12 +158,13 @@ async def create_collection(collection: CollectionCreate):
 
 @router.post("/upload-image")
 async def upload_image(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     collection_id: Optional[int] = Form(None),
     collection_name: Optional[str] = Form(None)
 ):
     """
-    Upload a book page image, extract words using LLM.
+    Upload a book page image, create a source record, and enqueue LLM extraction.
     """
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
@@ -181,21 +182,6 @@ async def upload_image(
     with open(file_path, "wb") as f:
         f.write(image_bytes)
     
-    # Extract words using LLM
-    try:
-        extracted = await extract_words_from_image(image_bytes, mime_type=file.content_type)
-    except Exception as e:
-        print(f"ERROR: Exception during extraction call: {e}")
-        raise HTTPException(status_code=500, detail=f"LLM extraction service error: {str(e)}")
-    
-    if not extracted:
-        # Check if it was an API key issue or something else
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="Missing GEMINI_API_KEY in server environment")
-        raise HTTPException(status_code=422, detail="Could not extract words. Please check if the image is clear and contains Danish text.")
-    
-    # Save source
     with get_session() as session:
         # Determine collection
         target_collection_id = collection_id
@@ -216,73 +202,143 @@ async def upload_image(
         source = Source(
             name=file.filename or "uploaded_image",
             path=file_path,
+            status="processing",
             collection_id=target_collection_id
         )
         session.add(source)
         session.commit()
         session.refresh(source)
-        
-        # Save words (avoid duplicates)
-        words_added = 0
-        for item in extracted:
-            word_text = item.get("word", "").lower().strip()
-            if not word_text:
-                continue
-                
-            # Check if word already exists
-            existing = session.exec(
-                select(Word).where(Word.text == word_text)
-            ).first()
-            
-            if existing:
-                # Update frequency
-                existing.freq += 1
-                if not existing.definition and item.get("definition"):
-                    existing.definition = item["definition"]
-                # If existing word doesn't have a collection, assign it
-                if not existing.collection_id:
-                    existing.collection_id = target_collection_id
-            else:
-                # Create new word
-                word = Word(
-                    text=word_text,
-                    definition=item.get("definition"),
-                    syllables=estimate_syllables(word_text),
-                    source_id=source.id,
-                    collection_id=target_collection_id,
-                    freq=1
-                )
-                session.add(word)
-                words_added += 1
-        
-        session.commit()
         source_id = source.id
         
-        # Get the full word objects to return
-        added_words = []
-        for item in extracted:
-            word_text = item.get("word", "").lower().strip()
-            if not word_text: continue
+    # Enqueue background extraction task
+    background_tasks.add_task(
+        process_image_extraction, 
+        source_id=source_id, 
+        image_bytes=image_bytes, 
+        mime_type=file.content_type, 
+        collection_id=target_collection_id
+    )
+    
+    return {
+        "success": True,
+        "source_id": source_id,
+        "collection_id": target_collection_id,
+        "status": "processing",
+        "message": "Image uploaded successfully. Extraction is running in the background."
+    }
+
+
+async def process_image_extraction(source_id: int, image_bytes: bytes, mime_type: str, collection_id: int):
+    """
+    Background task to extract words using LLM and save them to the database.
+    """
+    import os
+    try:
+        # Extract words using LLM
+        extracted = await extract_words_from_image(image_bytes, mime_type=mime_type)
+        
+        if not extracted:
+            # Check if it was an API key issue or something else
+            api_key = os.getenv("GEMINI_API_KEY")
+            error_msg = "Missing GEMINI_API_KEY in server environment" if not api_key else "Could not extract words. Please check if the image is clear and contains Danish text."
+            with get_session() as session:
+                source = session.get(Source, source_id)
+                if source:
+                    source.status = "failed"
+                    source.error_message = error_msg
+                    session.add(source)
+                    session.commit()
+            return
             
-            w = session.exec(select(Word).where(Word.text == word_text)).first()
-            if w:
-                added_words.append({
+        with get_session() as session:
+            # Save words (avoid duplicates)
+            words_added = 0
+            for item in extracted:
+                word_text = item.get("word", "").lower().strip()
+                if not word_text:
+                    continue
+                    
+                # Check if word already exists
+                existing = session.exec(
+                    select(Word).where(Word.text == word_text)
+                ).first()
+                
+                if existing:
+                    # Update frequency
+                    existing.freq += 1
+                    if not existing.definition and item.get("definition"):
+                        existing.definition = item["definition"]
+                    # If existing word doesn't have a collection, assign it
+                    if not existing.collection_id:
+                        existing.collection_id = collection_id
+                else:
+                    # Create new word
+                    word = Word(
+                        text=word_text,
+                        definition=item.get("definition"),
+                        syllables=estimate_syllables(word_text),
+                        source_id=source_id,
+                        collection_id=collection_id,
+                        freq=1
+                    )
+                    session.add(word)
+                    words_added += 1
+            
+            # Update source status to completed
+            source = session.get(Source, source_id)
+            if source:
+                source.status = "completed"
+                session.add(source)
+                
+            session.commit()
+            
+    except Exception as e:
+        print(f"ERROR: Exception during background extraction call: {e}")
+        with get_session() as session:
+            source = session.get(Source, source_id)
+            if source:
+                source.status = "failed"
+                source.error_message = str(e)
+                session.add(source)
+                session.commit()
+
+
+@router.get("/upload-status/{source_id}")
+async def get_upload_status(source_id: int):
+    """
+    Check the status of an image extraction background task.
+    """
+    with get_session() as session:
+        source = session.get(Source, source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+            
+        result = {
+            "source_id": source.id,
+            "status": source.status,
+            "collection_id": source.collection_id
+        }
+        
+        if source.status == "failed":
+            result["error"] = source.error_message
+            
+        elif source.status == "completed":
+            # Fetch all words for this source
+            words = session.exec(select(Word).where(Word.source_id == source.id)).all()
+            result["words_extracted"] = len(words)
+            result["words"] = [
+                {
                     "id": w.id,
                     "text": w.text,
                     "definition": w.definition,
                     "read_count": w.read_count,
                     "spelling_verified": w.spelling_verified,
                     "mastered": w.mastered
-                })
-    
-    return {
-        "success": True,
-        "words_extracted": len(extracted),
-        "words_added": words_added,
-        "source_id": source_id,
-        "collection_id": target_collection_id,
-        "words": added_words
-    }
+                }
+                for w in words
+            ]
+            
+        return result
 
 
 @router.get("/words", response_model=list[WordResponse])

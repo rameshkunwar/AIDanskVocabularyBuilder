@@ -42,6 +42,8 @@ class Source(SQLModel, table=True):
     name: str
     path: str
     uploaded_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    status: str = Field(default="completed")  # "processing", "completed", "failed"
+    error_message: Optional[str] = None
     collection_id: Optional[int] = Field(default=None, foreign_key="collection.id")
 
     # Relationships

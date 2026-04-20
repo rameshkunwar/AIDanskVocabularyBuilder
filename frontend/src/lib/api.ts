@@ -2,10 +2,11 @@ import type {
     Word,
     UserProgress,
     Badge,
-    ExtractedWordsResponse,
     PracticeResponse,
     SpellingVerifyResponse,
     Collection,
+    UploadInitResponse,
+    UploadStatusResponse,
 } from "@/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -34,7 +35,7 @@ export async function uploadImage(
     file: File,
     collectionId?: number,
     collectionName?: string
-): Promise<ExtractedWordsResponse> {
+): Promise<UploadInitResponse> {
     const formData = new FormData();
     formData.append("file", file);
     if (collectionId) formData.append("collection_id", collectionId.toString());
@@ -50,6 +51,13 @@ export async function uploadImage(
     }
 
     return response.json();
+}
+
+// Check status of image extraction
+export async function checkUploadStatus(
+    sourceId: number
+): Promise<UploadStatusResponse> {
+    return fetchApi<UploadStatusResponse>(`/api/upload-status/${sourceId}`);
 }
 
 // Get next words to practice

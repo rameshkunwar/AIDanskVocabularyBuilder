@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, Loader2, Check, X, BookOpen, Plus, FolderOpen } from "lucide-react";
-import { uploadImage, getCollections } from "@/lib/api";
+import { uploadImage, getCollections, checkUploadStatus } from "@/lib/api";
 import type { Word } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ export function UploadPage() {
     const [newCollectionName, setNewCollectionName] = useState("");
     const [isCreatingNewCollection, setIsCreatingNewCollection] = useState(false);
     const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+    const [pollingSourceId, setPollingSourceId] = useState<number | null>(null);
 
     const { data: collections = [] } = useQuery({
         queryKey: ["collections"],
@@ -26,11 +27,31 @@ export function UploadPage() {
         mutationFn: ({ file, collectionId, collectionName }: { file: File, collectionId?: number, collectionName?: string }) =>
             uploadImage(file, collectionId, collectionName),
         onSuccess: (data) => {
-            setExtractedWords(data.words);
-            queryClient.invalidateQueries({ queryKey: ["words"] });
-            queryClient.invalidateQueries({ queryKey: ["collections"] });
+            setPollingSourceId(data.source_id);
         },
     });
+
+    const { data: uploadStatus, isError: isPollingError, error: pollingError } = useQuery({
+        queryKey: ["uploadStatus", pollingSourceId],
+        queryFn: () => checkUploadStatus(pollingSourceId!),
+        enabled: !!pollingSourceId,
+        refetchInterval: (query) => {
+            const data = query.state.data;
+            if (data?.status === "completed" || data?.status === "failed") {
+                return false;
+            }
+            return 2000;
+        },
+    });
+
+    useEffect(() => {
+        if (uploadStatus?.status === "completed" && uploadStatus.words) {
+            setExtractedWords(uploadStatus.words);
+            queryClient.invalidateQueries({ queryKey: ["words"] });
+            queryClient.invalidateQueries({ queryKey: ["collections"] });
+            setPollingSourceId(null);
+        }
+    }, [uploadStatus, queryClient]);
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -94,6 +115,7 @@ export function UploadPage() {
         setFileToUpload(null);
         setIsCreatingNewCollection(false);
         setNewCollectionName("");
+        setPollingSourceId(null);
         uploadMutation.reset();
     };
 
@@ -169,7 +191,7 @@ export function UploadPage() {
                         </button>
                     </div>
 
-                    {!uploadMutation.isPending && !uploadMutation.isSuccess && !uploadMutation.isError && (
+                    {!uploadMutation.isPending && !uploadMutation.isSuccess && !uploadMutation.isError && !pollingSourceId && !extractedWords.length && (
                         <div className="p-8 bg-purple-50/50 border-t border-purple-100 flex flex-col items-center justify-center">
                             <div className="w-full max-w-md space-y-6">
                                 <div className="text-center">
@@ -250,21 +272,21 @@ export function UploadPage() {
                     )}
 
                     <div className="p-6">
-                        {uploadMutation.isPending && (
+                        {(uploadMutation.isPending || (pollingSourceId && uploadStatus?.status !== "failed" && uploadStatus?.status !== "completed")) && (
                             <div className="flex flex-col items-center justify-center gap-4 py-8">
                                 <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
                                 <div className="text-center">
                                     <span className="text-lg font-medium text-gray-700 block mb-1">
-                                        Finder ord i billedet...
+                                        {uploadMutation.isPending ? "Uploader billede..." : "Finder ord i billedet..."}
                                     </span>
                                     <span className="text-sm text-gray-500">
-                                        Dette kan tage op til 30 sekunder. Vi bruger AI til at finde de bedste ord! 🤖
+                                        Dette kan tage op til et minut. Vi arbejder i baggrunden! 🤖
                                     </span>
                                 </div>
                             </div>
                         )}
 
-                        {uploadMutation.isError && (
+                        {(uploadMutation.isError || isPollingError || uploadStatus?.status === "failed") && (
                             <div className="text-center py-8">
                                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <X className="w-8 h-8 text-red-500" />
@@ -273,7 +295,7 @@ export function UploadPage() {
                                     Hov, noget gik galt!
                                 </p>
                                 <p className="text-sm text-gray-500 mb-6">
-                                    {uploadMutation.error?.message || "Kunne ikke uploade billedet."}
+                                    {uploadMutation.error?.message || pollingError?.message || uploadStatus?.error || "Kunne ikke uploade billedet."}
                                 </p>
                                 <Button variant="outline" onClick={handleReset}>
                                     Prøv igen
@@ -281,7 +303,7 @@ export function UploadPage() {
                             </div>
                         )}
 
-                        {uploadMutation.isSuccess && extractedWords.length > 0 && (
+                        {extractedWords.length > 0 && (
                             <div className="space-y-6">
                                 <div className="flex flex-col items-center justify-center text-center gap-2">
                                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
@@ -324,7 +346,7 @@ export function UploadPage() {
                                         size="lg"
                                         className="flex-1"
                                         onClick={() => {
-                                            const cid = uploadMutation.data?.collection_id;
+                                            const cid = uploadMutation.data?.collection_id || uploadStatus?.collection_id;
                                             window.location.href = cid ? `/practice?collection_id=${cid}` : "/practice";
                                         }}
                                     >

@@ -47,6 +47,23 @@ export interface ExtractedWordsResponse {
     words: Word[];
 }
 
+export interface UploadInitResponse {
+    success: boolean;
+    source_id: number;
+    collection_id?: number;
+    status: string;
+    message: string;
+}
+
+export interface UploadStatusResponse {
+    source_id: number;
+    status: string;
+    collection_id?: number;
+    error?: string;
+    words_extracted?: number;
+    words?: Word[];
+}
+
 export interface PracticeResponse {
     word: Word;
     points_earned: number;
