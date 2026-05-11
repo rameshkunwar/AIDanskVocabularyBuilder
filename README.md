@@ -25,14 +25,12 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 ### Backend
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 
 # Add API keys to .env
 echo "GEMINI_API_KEY=your_key" >> .env
 
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 ### Frontend
