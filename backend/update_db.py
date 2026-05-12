@@ -13,7 +13,7 @@ def get_database_url():
         password = os.getenv("POSTGRES_PASSWORD")
         host = os.getenv("POSTGRES_HOST", "localhost")
         port = os.getenv("POSTGRES_PORT", "5432")
-        db_name = os.getenv("POSTGRES_DB", "ai_dansk_vocabulary")
+        db_name = os.getenv("POSTGRES_DB", "danskvocab")
         encoded_password = urllib.parse.quote_plus(password) if password else ""
         return f"postgresql://{user}:{encoded_password}@{host}:{port}/{db_name}"
     else:
