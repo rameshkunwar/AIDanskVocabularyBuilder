@@ -28,7 +28,6 @@ export function WordCard({
     const [spellingError, setSpellingError] = useState(false);
     const [spellingSuccess, setSpellingSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [practiceInput, setPracticeInput] = useState("");
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Sync state with word prop

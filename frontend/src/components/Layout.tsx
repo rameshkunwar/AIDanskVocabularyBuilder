@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BookOpen, Upload, Trophy } from "lucide-react";
+import { BookOpen, PlusCircle, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Layout() {
@@ -15,8 +15,8 @@ export function Layout() {
                         <NavItem to="/" icon={<BookOpen className="w-5 h-5" />} label="Samlinger" />
                         <NavItem
                             to="/upload"
-                            icon={<Upload className="w-5 h-5" />}
-                            label="Upload"
+                            icon={<PlusCircle className="w-5 h-5" />}
+                            label="Tilføj ord"
                         />
                         <NavItem
                             to="/progress"
