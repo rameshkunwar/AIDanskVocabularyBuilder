@@ -1,15 +1,24 @@
 ramesh.dk {
+    # Point to the Cloudflare certificates
+    tls /certs/danskvocab.pem /certs/danskvocab.key
+
     # Temp message page for the root domain
     root * /var/www/html
     file_server
 }
 
 danskvocab.ramesh.dk {
+    # Point to the Cloudflare certificates
+    tls /certs/danskvocab.pem /certs/danskvocab.key
+
     # Send users to the React frontend
     reverse_proxy frontend:80
 }
 
 api.ramesh.dk {
+    # Point to the Cloudflare certificates
+    tls /certs/danskvocab.pem /certs/danskvocab.key
+
     # Send app data requests to the FastAPI backend
     reverse_proxy api:8000
 }
