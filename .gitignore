@@ -435,3 +435,8 @@ __pycache__/
 backend/audio_cache/
 backend/uploads/
 *.db
+
+certs/
+*.pem
+*.key
+*.sql
