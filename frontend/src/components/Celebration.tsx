@@ -11,6 +11,7 @@ interface Particle {
     color: string;
     delay: number;
     size: number;
+    isCircle: boolean;
 }
 
 export function Celebration({ show, onComplete }: CelebrationProps) {
@@ -33,6 +34,7 @@ export function Celebration({ show, onComplete }: CelebrationProps) {
                 color: colors[Math.floor(Math.random() * colors.length)],
                 delay: Math.random() * 0.5,
                 size: Math.random() * 8 + 4,
+                isCircle: Math.random() > 0.5,
             }));
 
             setParticles(newParticles);
@@ -60,7 +62,7 @@ export function Celebration({ show, onComplete }: CelebrationProps) {
                         width: particle.size,
                         height: particle.size,
                         backgroundColor: particle.color,
-                        borderRadius: Math.random() > 0.5 ? "50%" : "0",
+                        borderRadius: particle.isCircle ? "50%" : "0",
                         animationDelay: `${particle.delay}s`,
                     }}
                 />
