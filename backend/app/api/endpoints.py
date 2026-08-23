@@ -2,8 +2,9 @@
 API Endpoints for AIDanskVocabularyBuilder
 """
 import json
+import asyncio
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -11,7 +12,7 @@ from sqlmodel import select
 
 from app.db import get_session
 from app.models import Word, Source, Practiced, UserProgress, Badge, Collection
-from app.llm_adapter import extract_words_from_image, get_next_words_to_practice
+from app.llm_adapter import extract_words_from_image, get_next_words_to_practice, get_word_definition
 from app.tts import get_audio
 from app.extractor import estimate_syllables
 
@@ -73,6 +74,19 @@ class CollectionResponse(BaseModel):
 
 class CollectionCreate(BaseModel):
     name: str
+
+
+class AddWordsRequest(BaseModel):
+    collection_name: str
+    words: str
+
+
+class AddWordsResponse(BaseModel):
+    success: bool
+    collection_id: int
+    words_added: int
+    words_skipped: int
+    added_words: List[dict]
 
 
 # ============ Helper Functions ============
@@ -152,6 +166,75 @@ async def create_collection(collection: CollectionCreate):
         session.commit()
         session.refresh(db_collection)
         return db_collection
+
+
+@router.post("/collections/add-words", response_model=AddWordsResponse)
+async def add_words_to_collection(request: AddWordsRequest):
+    """
+    Add comma-separated words to a collection.
+    Fetch definitions from LLM for new words.
+    """
+    with get_session() as session:
+        # 1. Find or create collection
+        collection = session.exec(select(Collection).where(Collection.name == request.collection_name)).first()
+        if not collection:
+            collection = Collection(name=request.collection_name)
+            session.add(collection)
+            session.commit()
+            session.refresh(collection)
+        
+        collection_id = collection.id
+        
+        # 2. Process words
+        word_list = [w.strip().lower() for w in request.words.split(",") if w.strip()]
+        
+        added_count = 0
+        skipped_count = 0
+        added_words_info = []
+        
+        # Filter out duplicates (globally as requested)
+        words_to_fetch = []
+        for word_text in word_list:
+            existing = session.exec(select(Word).where(Word.text == word_text)).first()
+            if existing:
+                skipped_count += 1
+                continue
+            
+            if word_text not in words_to_fetch:
+                words_to_fetch.append(word_text)
+            else:
+                skipped_count += 1 # Duplicate in the input string
+        
+        # 3. Fetch definitions in parallel
+        if words_to_fetch:
+            tasks = [get_word_definition(w) for w in words_to_fetch]
+            definitions = await asyncio.gather(*tasks)
+            
+            for word_text, definition in zip(words_to_fetch, definitions):
+                # Create word
+                new_word = Word(
+                    text=word_text,
+                    definition=definition or "Definition ikke tilgængelig",
+                    syllables=estimate_syllables(word_text),
+                    collection_id=collection_id,
+                    freq=1
+                )
+                session.add(new_word)
+                added_count += 1
+                added_words_info.append({
+                    "text": word_text,
+                    "definition": new_word.definition
+                })
+        
+        session.commit()
+        
+        return AddWordsResponse(
+            success=True,
+            collection_id=collection_id,
+            words_added=added_count,
+            words_skipped=skipped_count,
+            added_words=added_words_info
+        )
 
 
 # ============ Endpoints ============

@@ -78,3 +78,16 @@ export interface SpellingVerifyResponse {
     new_total_points: number;
     badges_earned?: Badge[];
 }
+
+export interface AddWordsRequest {
+    collection_name: string;
+    words: string;
+}
+
+export interface AddWordsResponse {
+    success: boolean;
+    collection_id: number;
+    words_added: number;
+    words_skipped: number;
+    added_words: { text: string; definition: string }[];
+}

@@ -4,11 +4,12 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 
 ## Features
 
-- 📚 **Book Page Upload**: Upload images of Danish book pages
+- 📚 **Book Page Upload & Camera Capture**: Scan Danish book pages by uploading an image or taking a photo directly within the app (fully optimized for mobile and desktop cameras)
+- ✍️ **Manual Word Input**: Type one or multiple comma-separated words manually, automatically fetching kid-friendly definitions from the AI
 - 🤖 **AI Word Extraction**: Uses Pydantic AI agents to orchestrate Gemini/Ollama to strictly extract words and generate kid-friendly definitions
 - 🔊 **Text-to-Speech**: Danish pronunciation via DR.dk API
 - ⭐ **Gamification**: Points, badges, and streaks for motivation
-- ✍️ **Spelling Practice**: Type words correctly to master them
+- 📝 **Spelling Practice**: Type words correctly to master them
 
 ## Tech Stack
 
@@ -25,14 +26,12 @@ A Danish vocabulary learning app for children that uses AI to extract words from
 ### Backend
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 
 # Add API keys to .env
 echo "GEMINI_API_KEY=your_key" >> .env
 
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 ### Frontend

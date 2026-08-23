@@ -7,6 +7,8 @@ import type {
     Collection,
     UploadInitResponse,
     UploadStatusResponse,
+    AddWordsRequest,
+    AddWordsResponse,
 } from "@/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -123,5 +125,13 @@ export async function createCollection(name: string): Promise<Collection> {
 export async function resetProgress(): Promise<{ success: boolean; message: string }> {
     return fetchApi("/api/progress/reset", {
         method: "POST",
+    });
+}
+
+// Add manual words to a collection
+export async function addWordsToCollection(request: AddWordsRequest): Promise<AddWordsResponse> {
+    return fetchApi<AddWordsResponse>("/api/collections/add-words", {
+        method: "POST",
+        body: JSON.stringify(request),
     });
 }

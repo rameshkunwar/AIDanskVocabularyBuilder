@@ -68,6 +68,8 @@ A Danish vocabulary builder app for a 3rd-grade student that extracts words from
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/upload-image` | POST | Upload book page, extract words + definitions via LLM |
+| `/api/collections/add-words` | POST | Add manual comma-separated words, fetch definitions via LLM |
+| `/api/collections` | GET / POST | Get all collections or create a new collection |
 | `/api/words/next` | GET | Get next words to practice (LLM prioritized) |
 | `/api/words/{id}` | GET | Get specific word details |
 | `/api/words/{id}/practice` | POST | Increment read counter, award points |
@@ -95,11 +97,13 @@ A Danish vocabulary builder app for a 3rd-grade student that extracts words from
 
 ## User Flow
 
-1. **Upload**: Parent uploads book page image
-2. **Extract**: LLM extracts Danish words + kid-friendly definitions
-3. **Practice**: Child sees word card with TTS button
-4. **Read**: Click "I read it!" 5 times (with audio playback)
-5. **Spell**: Type the word correctly to master it
+1. **Add Vocabulary**:
+   - **OCR Scan**: Parent uploads book page image or snaps a picture directly using the in-app camera (optimized for mobile and desktop webcams).
+   - **Manual Entry**: Parent/Teacher types one or multiple comma-separated words manually.
+2. **Extract & Define**: LLM extracts Danish words (for OCR) and automatically fetches kid-friendly definitions for new words.
+3. **Practice**: Child sees word card with TTS button.
+4. **Read**: Click "Lyt" 5 times to listen and practice.
+5. **Spell**: Type the word correctly to master it.
 6. **Celebrate**: Earn points and badges! 🎉
 
 ---

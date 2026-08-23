@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.ollama import OllamaModel
+from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.messages import BinaryImage
 
 # ---------------------------------------------------------
@@ -30,6 +32,11 @@ load_dotenv(dotenv_path=env_path)
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# For Requesty (OpenAI-compatible AI Gateway & Router)
+REQUESTY_API_KEY = os.getenv("REQUESTY_API_KEY")
+REQUESTY_BASE_URL = os.getenv("REQUESTY_BASE_URL", "https://router.eu.requesty.ai/v1")
+REQUESTY_MODEL = os.getenv("REQUESTY_MODEL", "policy/default")
 
 # For Ollama models (native Pydantic AI OllamaModel + OllamaProvider)
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-vl:235b-cloud")
@@ -69,7 +76,13 @@ def get_vision_agent() -> Agent:
     The agent essentially acts as a strict mapper, guaranteeing that output matches
     the `WordList` schema without hallucination.
     """
-    if LLM_PROVIDER == "ollama":
+    if LLM_PROVIDER == "requesty":
+        provider = OpenAIProvider(
+            base_url=REQUESTY_BASE_URL,
+            api_key=REQUESTY_API_KEY,
+        )
+        model = OpenAIModel(REQUESTY_MODEL, provider=provider)
+    elif LLM_PROVIDER == "ollama":
         # Native Pydantic AI Ollama integration with generous timeout for cloud vision tasks
         custom_http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(360.0, connect=10.0),
@@ -94,7 +107,13 @@ def get_text_agent() -> Agent:
     Constructs a specialized Pydantic AI agent geared purely towards text output
     like single dictionary definitions.
     """
-    if LLM_PROVIDER == "ollama":
+    if LLM_PROVIDER == "requesty":
+        provider = OpenAIProvider(
+            base_url=REQUESTY_BASE_URL,
+            api_key=REQUESTY_API_KEY,
+        )
+        model = OpenAIModel(REQUESTY_MODEL, provider=provider)
+    elif LLM_PROVIDER == "ollama":
         provider = OllamaProvider(
             base_url=OLLAMA_BASE_URL,
             api_key=OLLAMA_API_KEY

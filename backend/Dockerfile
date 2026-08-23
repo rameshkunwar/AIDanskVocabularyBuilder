@@ -1,23 +1,30 @@
 # ============================================
 # Stage 1: Install dependencies
 # ============================================
-FROM python:3.13-slim AS deps
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS deps
 
 WORKDIR /app
+
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+# Copy from the cache instead of linking since it's a separate volume
+ENV UV_LINK_MODE=copy
 
 # Install system dependencies required by psycopg2-binary
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev
 
 # ============================================
 # Stage 2: Production runtime
 # ============================================
-FROM python:3.13-slim AS production
+FROM python:3.13-slim-bookworm AS production
 
 WORKDIR /app
 
@@ -26,9 +33,11 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libpq5 && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy installed Python packages from deps stage
-COPY --from=deps /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-COPY --from=deps /usr/local/bin /usr/local/bin
+# Copy the virtualenv from the deps stage
+COPY --from=deps /app/.venv /app/.venv
+
+# Ensure the virtualenv is used
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy application source
 COPY . .

@@ -10,7 +10,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TTS_PROVIDER = "dr"
+TTS_PROVIDER = os.getenv("TTS_PROVIDER")
+TTS_PROVIDER_URL = os.getenv("TTS_PROVIDER_URL")
+
+if not TTS_PROVIDER or not TTS_PROVIDER_URL:
+    raise ValueError("CRITICAL ERROR: TTS_PROVIDER and TTS_PROVIDER_URL must be set in the environment!")
+
 
 # Cache directory for audio files
 AUDIO_CACHE_DIR = Path(__file__).parent.parent / "audio_cache"
@@ -46,8 +51,8 @@ async def get_audio(word: str) -> Optional[bytes]:
 
 
 async def generate_audio_dr(word: str) -> Optional[bytes]:
-    """Generate audio using DR's public TTS endpoint"""
-    url = f"https://www.dr.dk/tjenester/tts"
+    """Generate audio using the configured TTS endpoint"""
+    url = TTS_PROVIDER_URL
     params = {"text": word}
     
     try:

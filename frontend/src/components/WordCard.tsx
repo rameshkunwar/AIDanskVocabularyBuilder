@@ -28,7 +28,6 @@ export function WordCard({
     const [spellingError, setSpellingError] = useState(false);
     const [spellingSuccess, setSpellingSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [practiceInput, setPracticeInput] = useState("");
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Sync state with word prop
@@ -184,7 +183,7 @@ export function WordCard({
             </Button>
 
             {/* Practice Input while listening */}
-            <div className="mb-6 max-w-[240px] mx-auto">
+            {/* <div className="mb-6 max-w-[240px] mx-auto">
                 <Input
                     type="text"
                     placeholder="Skriv mens du lytter..."
@@ -199,7 +198,7 @@ export function WordCard({
                         )
                     )}
                 />
-            </div>
+            </div> */}
 
             {/* Progress bar */}
             <div className="mb-6 space-y-1">
