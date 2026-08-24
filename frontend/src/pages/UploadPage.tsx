@@ -89,6 +89,16 @@ export function UploadPage() {
         }
     }, [uploadStatus, queryClient]);
 
+    const handleFile = (file: File) => {
+        setFileToUpload(file);
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setPreviewUrl(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -119,16 +129,6 @@ export function UploadPage() {
         },
         []
     );
-
-    const handleFile = (file: File) => {
-        setFileToUpload(file);
-        // Create preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            setPreviewUrl(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-    };
 
     const startUpload = () => {
         if (!fileToUpload) return;
