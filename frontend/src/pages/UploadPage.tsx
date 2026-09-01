@@ -46,6 +46,10 @@ export function UploadPage() {
         queryFn: getCollections,
     });
 
+    const isDuplicateName = isCreatingNewCollection && newCollectionName.trim() !== "" && collections.some(
+        (col) => col.name.trim().toLowerCase() === newCollectionName.trim().toLowerCase()
+    );
+
     const uploadMutation = useMutation({
         mutationFn: ({ file, collectionId, collectionName }: { file: File, collectionId?: number, collectionName?: string }) =>
             uploadImage(file, collectionId, collectionName),
@@ -133,15 +137,21 @@ export function UploadPage() {
     const startUpload = () => {
         if (!fileToUpload) return;
 
-        if (isCreatingNewCollection && !newCollectionName.trim()) {
-            alert("Giv venligst den nye samling et navn.");
-            return;
+        if (isCreatingNewCollection) {
+            if (!newCollectionName.trim()) {
+                alert("Giv venligst den nye samling et navn.");
+                return;
+            }
+            if (isDuplicateName) {
+                alert(`En samling med navnet "${newCollectionName.trim()}" findes allerede. Vælg "Eksisterende" eller angiv et andet navn.`);
+                return;
+            }
         }
 
         uploadMutation.mutate({
             file: fileToUpload,
             collectionId: isCreatingNewCollection ? undefined : (selectedCollectionId || undefined),
-            collectionName: isCreatingNewCollection ? newCollectionName : undefined
+            collectionName: isCreatingNewCollection ? newCollectionName.trim() : undefined
         });
     };
 
@@ -264,6 +274,10 @@ export function UploadPage() {
         if (isCreatingNewCollection) {
             if (!newCollectionName.trim()) {
                 alert("Giv venligst den nye samling et navn.");
+                return;
+            }
+            if (isDuplicateName) {
+                alert(`En samling med navnet "${newCollectionName.trim()}" findes allerede. Vælg "Eksisterende" eller angiv et andet navn.`);
                 return;
             }
             collectionName = newCollectionName.trim();
@@ -485,11 +499,21 @@ export function UploadPage() {
                                     <label className="text-sm font-medium text-gray-700 ml-1">Samlingens navn</label>
                                     <input
                                         type="text"
-                                        placeholder="F.eks. Kapittel 1, Min yndlingsbog..."
+                                        placeholder="F.eks. Kapitel 1, Min yndlingsbog..."
                                         value={newCollectionName}
                                         onChange={(e) => setNewCollectionName(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white transition-all shadow-sm"
+                                        className={cn(
+                                            "w-full px-4 py-3 rounded-xl border focus:outline-none transition-all shadow-sm",
+                                            isDuplicateName
+                                                ? "border-amber-400 focus:ring-2 focus:ring-amber-400 bg-amber-50/30 text-amber-900"
+                                                : "border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white"
+                                        )}
                                     />
+                                    {isDuplicateName && (
+                                        <p className="text-xs text-amber-600 font-medium ml-1">
+                                            ⚠️ En samling med dette navn findes allerede. Vælg &quot;Eksisterende&quot; for at tilføje til den, eller vælg et andet navn.
+                                        </p>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-2 animate-fade-in">
@@ -595,11 +619,21 @@ export function UploadPage() {
                                             <label className="text-sm font-medium text-gray-700 ml-1">Samlingens navn</label>
                                             <input
                                                 type="text"
-                                                placeholder="F.eks. Kapittel 1, Min yndlingsbog..."
+                                                placeholder="F.eks. Kapitel 1, Min yndlingsbog..."
                                                 value={newCollectionName}
                                                 onChange={(e) => setNewCollectionName(e.target.value)}
-                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white transition-all shadow-sm"
+                                                className={cn(
+                                                    "w-full px-4 py-3 rounded-xl border focus:outline-none transition-all shadow-sm",
+                                                    isDuplicateName
+                                                        ? "border-amber-400 focus:ring-2 focus:ring-amber-400 bg-amber-50/30 text-amber-900"
+                                                        : "border-gray-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white"
+                                                )}
                                             />
+                                            {isDuplicateName && (
+                                                <p className="text-xs text-amber-600 font-medium ml-1">
+                                                    ⚠️ En samling med dette navn findes allerede. Vælg &quot;Eksisterende&quot; for at tilføje til den, eller vælg et andet navn.
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="space-y-2 animate-fade-in">

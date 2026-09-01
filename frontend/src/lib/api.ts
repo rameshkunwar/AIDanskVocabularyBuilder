@@ -26,7 +26,16 @@ async function fetchApi<T>(
     });
 
     if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        try {
+            const errorData = await response.json();
+            if (errorData?.detail) {
+                errorMessage = errorData.detail;
+            }
+        } catch {
+            // Ignore parse errors
+        }
+        throw new Error(errorMessage);
     }
 
     return response.json();
@@ -118,6 +127,13 @@ export async function createCollection(name: string): Promise<Collection> {
     return fetchApi<Collection>("/api/collections", {
         method: "POST",
         body: JSON.stringify({ name }),
+    });
+}
+
+// Delete an empty collection
+export async function deleteCollection(id: number): Promise<{ success: boolean; message: string }> {
+    return fetchApi<{ success: boolean; message: string }>(`/api/collections/${id}`, {
+        method: "DELETE",
     });
 }
 

@@ -1,15 +1,34 @@
-import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Calendar, ChevronRight, Loader2, FolderPlus } from "lucide-react";
-import { getCollections } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BookOpen, Calendar, ChevronRight, Loader2, FolderPlus, Trash2 } from "lucide-react";
+import { getCollections, deleteCollection } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export function DashboardPage() {
+    const queryClient = useQueryClient();
     const { data: collections = [], isLoading } = useQuery({
         queryKey: ["collections"],
         queryFn: getCollections,
     });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: number) => deleteCollection(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["collections"] });
+        },
+        onError: (err: Error) => {
+            alert(err?.message || "Kunne ikke slette samlingen.");
+        },
+    });
+
+    const handleDelete = (e: React.MouseEvent, id: number, name: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (confirm(`Er du sikker på, at du vil slette den tomme samling "${name}"?`)) {
+            deleteMutation.mutate(id);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -67,46 +86,59 @@ export function DashboardPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {collections.map((collection) => (
-                        <Link
-                            key={collection.id}
-                            to={`/practice?collection_id=${collection.id}`}
-                            className="block group"
-                        >
-                            <Card
-                                variant="default"
-                                className="h-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:border-purple-300 relative overflow-hidden group"
+                        <div key={collection.id} className="relative group/card">
+                            <Link
+                                to={`/practice?collection_id=${collection.id}`}
+                                className="block group h-full"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <BookOpen className="w-16 h-16 text-purple-600" />
-                                </div>
-
-                                <div className="p-6 flex flex-col h-full">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-purple-600 transition-colors">
-                                        {collection.name}
-                                    </h3>
-
-                                    <div className="mt-auto space-y-2">
-                                        <div className="flex items-center text-sm font-semibold text-purple-600 bg-purple-50 w-fit px-2 py-1 rounded-md mb-2">
-                                            <BookOpen className="w-4 h-4 mr-2" />
-                                            {collection.word_count} {collection.word_count === 1 ? 'ord' : 'ord'}
-                                        </div>
-                                        <div className="flex items-center text-sm text-gray-500">
-                                            <Calendar className="w-4 h-4 mr-2 text-purple-400" />
-                                            Oprettet: {new Date(collection.created_at).toLocaleDateString('da-DK')}
-                                        </div>
-                                        <div className="flex items-center text-sm text-gray-500">
-                                            <Calendar className="w-4 h-4 mr-2 text-pink-400" />
-                                            Opdateret: {new Date(collection.updated_at).toLocaleDateString('da-DK')}
-                                        </div>
+                                <Card
+                                    variant="default"
+                                    className="h-full transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-purple-300 relative overflow-hidden flex flex-col justify-between"
+                                >
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <BookOpen className="w-16 h-16 text-purple-600" />
                                     </div>
 
-                                    <div className="mt-6 flex items-center text-purple-600 font-bold group-hover:translate-x-2 transition-transform">
-                                        Start øvelse
-                                        <ChevronRight className="w-5 h-5 ml-1" />
+                                    <div className="p-6 flex flex-col h-full">
+                                        <div className="flex items-start justify-between gap-2 mb-4">
+                                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">
+                                                {collection.name}
+                                            </h3>
+                                            {collection.word_count === 0 && (
+                                                <button
+                                                    onClick={(e) => handleDelete(e, collection.id, collection.name)}
+                                                    className="opacity-60 hover:opacity-100 text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-all z-10"
+                                                    title="Slet tom samling"
+                                                    disabled={deleteMutation.isPending}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-auto space-y-2">
+                                            <div className="flex items-center text-sm font-semibold text-purple-600 bg-purple-50 w-fit px-2 py-1 rounded-md mb-2">
+                                                <BookOpen className="w-4 h-4 mr-2" />
+                                                {collection.word_count} {collection.word_count === 1 ? 'ord' : 'ord'}
+                                            </div>
+                                            <div className="flex items-center text-sm text-gray-500">
+                                                <Calendar className="w-4 h-4 mr-2 text-purple-400" />
+                                                Oprettet: {new Date(collection.created_at).toLocaleDateString('da-DK')}
+                                            </div>
+                                            <div className="flex items-center text-sm text-gray-500">
+                                                <Calendar className="w-4 h-4 mr-2 text-pink-400" />
+                                                Opdateret: {new Date(collection.updated_at).toLocaleDateString('da-DK')}
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-6 flex items-center text-purple-600 font-bold group-hover:translate-x-2 transition-transform">
+                                            Start øvelse
+                                            <ChevronRight className="w-5 h-5 ml-1" />
+                                        </div>
                                     </div>
-                                </div>
-                            </Card>
-                        </Link>
+                                </Card>
+                            </Link>
+                        </div>
                     ))}
                 </div>
             )}
