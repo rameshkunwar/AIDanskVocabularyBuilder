@@ -184,21 +184,32 @@ async def create_collection(collection: CollectionCreate):
 @router.delete("/collections/{collection_id}")
 async def delete_collection(collection_id: int):
     """
-    Delete a collection if it is empty (no words and no sources).
+    Delete a collection if it contains 0 words.
+    Automatically cleans up any associated source records.
     """
+    import os
     with get_session() as session:
         collection = session.get(Collection, collection_id)
         if not collection:
             raise HTTPException(status_code=404, detail="Samlingen blev ikke fundet.")
 
-        words_count = len(session.exec(select(Word).where(Word.collection_id == collection_id)).all())
-        sources_count = len(session.exec(select(Source).where(Source.collection_id == collection_id)).all())
-
-        if words_count > 0 or sources_count > 0:
+        # Check if collection contains any words
+        words = session.exec(select(Word).where(Word.collection_id == collection_id)).all()
+        if len(words) > 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"Samlingen kan ikke slettes, da den indeholder {words_count} ord og {sources_count} kilder. Kun tomme samlinger kan slettes."
+                detail=f"Samlingen kan ikke slettes, da den indeholder {len(words)} ord. Kun tomme samlinger kan slettes."
             )
+
+        # Delete any associated source records and cleanup upload files if they exist
+        sources = session.exec(select(Source).where(Source.collection_id == collection_id)).all()
+        for source in sources:
+            if source.path and os.path.exists(source.path):
+                try:
+                    os.remove(source.path)
+                except Exception:
+                    pass
+            session.delete(source)
 
         session.delete(collection)
         session.commit()
@@ -439,6 +450,15 @@ async def process_image_extraction(source_id: int, image_bytes: bytes, mime_type
                 source.error_message = str(e)
                 session.add(source)
                 session.commit()
+    finally:
+        # Clean up temporary uploaded image file from disk once extraction is done
+        try:
+            with get_session() as session:
+                source = session.get(Source, source_id)
+                if source and source.path and os.path.exists(source.path):
+                    os.remove(source.path)
+        except Exception as cleanup_err:
+            print(f"Notice: could not clean up uploaded image file: {cleanup_err}")
 
 
 @router.get("/upload-status/{source_id}")
