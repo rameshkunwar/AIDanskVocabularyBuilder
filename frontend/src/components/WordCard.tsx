@@ -230,7 +230,6 @@ export function WordCard({
                             spellingError && "border-red-400 bg-red-50 animate-shake",
                             spellingSuccess && "border-green-400 bg-green-50"
                         )}
-                        autoFocus
                     />
                     <Button
                         variant="primary"

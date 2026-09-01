@@ -8,7 +8,7 @@ from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
 from fastapi.responses import Response
 from pydantic import BaseModel
-from sqlmodel import select
+from sqlmodel import select, func
 
 from app.db import get_session
 from app.models import Word, Source, Practiced, UserProgress, Badge, Collection
@@ -159,13 +159,50 @@ async def get_collections():
 
 @router.post("/collections", response_model=CollectionResponse)
 async def create_collection(collection: CollectionCreate):
-    """Create a new collection"""
+    """Create a new collection, rejecting duplicate names (case-insensitive)"""
+    name = collection.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Samlingens navn må ikke være tomt.")
+
     with get_session() as session:
-        db_collection = Collection(name=collection.name)
+        existing = session.exec(
+            select(Collection).where(func.lower(Collection.name) == name.lower())
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"En samling med navnet '{existing.name}' findes allerede."
+            )
+
+        db_collection = Collection(name=name)
         session.add(db_collection)
         session.commit()
         session.refresh(db_collection)
         return db_collection
+
+
+@router.delete("/collections/{collection_id}")
+async def delete_collection(collection_id: int):
+    """
+    Delete a collection if it is empty (no words and no sources).
+    """
+    with get_session() as session:
+        collection = session.get(Collection, collection_id)
+        if not collection:
+            raise HTTPException(status_code=404, detail="Samlingen blev ikke fundet.")
+
+        words_count = len(session.exec(select(Word).where(Word.collection_id == collection_id)).all())
+        sources_count = len(session.exec(select(Source).where(Source.collection_id == collection_id)).all())
+
+        if words_count > 0 or sources_count > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Samlingen kan ikke slettes, da den indeholder {words_count} ord og {sources_count} kilder. Kun tomme samlinger kan slettes."
+            )
+
+        session.delete(collection)
+        session.commit()
+        return {"success": True, "message": f"Samlingen '{collection.name}' blev slettet."}
 
 
 @router.post("/collections/add-words", response_model=AddWordsResponse)
@@ -174,11 +211,17 @@ async def add_words_to_collection(request: AddWordsRequest):
     Add comma-separated words to a collection.
     Fetch definitions from LLM for new words.
     """
+    collection_name = request.collection_name.strip()
+    if not collection_name:
+        raise HTTPException(status_code=400, detail="Samlingens navn må ikke være tomt.")
+
     with get_session() as session:
-        # 1. Find or create collection
-        collection = session.exec(select(Collection).where(Collection.name == request.collection_name)).first()
+        # 1. Find or create collection (case-insensitive lookup)
+        collection = session.exec(
+            select(Collection).where(func.lower(Collection.name) == collection_name.lower())
+        ).first()
         if not collection:
-            collection = Collection(name=request.collection_name)
+            collection = Collection(name=collection_name)
             session.add(collection)
             session.commit()
             session.refresh(collection)
@@ -192,10 +235,15 @@ async def add_words_to_collection(request: AddWordsRequest):
         skipped_count = 0
         added_words_info = []
         
-        # Filter out duplicates (globally as requested)
+        # Filter out duplicates (scoped to the current collection)
         words_to_fetch = []
         for word_text in word_list:
-            existing = session.exec(select(Word).where(Word.text == word_text)).first()
+            existing = session.exec(
+                select(Word).where(
+                    Word.text == word_text,
+                    Word.collection_id == collection_id
+                )
+            ).first()
             if existing:
                 skipped_count += 1
                 continue
@@ -266,15 +314,22 @@ async def upload_image(
         f.write(image_bytes)
     
     with get_session() as session:
-        # Determine collection
         target_collection_id = collection_id
         if not target_collection_id and collection_name:
-            # Create a new collection if name provided
-            new_col = Collection(name=collection_name)
-            session.add(new_col)
-            session.commit()
-            session.refresh(new_col)
-            target_collection_id = new_col.id
+            c_name = collection_name.strip()
+            if c_name:
+                # Find existing collection case-insensitively or create new
+                existing_col = session.exec(
+                    select(Collection).where(func.lower(Collection.name) == c_name.lower())
+                ).first()
+                if existing_col:
+                    target_collection_id = existing_col.id
+                else:
+                    new_col = Collection(name=c_name)
+                    session.add(new_col)
+                    session.commit()
+                    session.refresh(new_col)
+                    target_collection_id = new_col.id
         
         if not target_collection_id:
             # Fallback to Initial Collection
@@ -341,9 +396,12 @@ async def process_image_extraction(source_id: int, image_bytes: bytes, mime_type
                 if not word_text:
                     continue
                     
-                # Check if word already exists
+                # Check if word already exists in this collection
                 existing = session.exec(
-                    select(Word).where(Word.text == word_text)
+                    select(Word).where(
+                        Word.text == word_text,
+                        Word.collection_id == collection_id
+                    )
                 ).first()
                 
                 if existing:
@@ -351,9 +409,6 @@ async def process_image_extraction(source_id: int, image_bytes: bytes, mime_type
                     existing.freq += 1
                     if not existing.definition and item.get("definition"):
                         existing.definition = item["definition"]
-                    # If existing word doesn't have a collection, assign it
-                    if not existing.collection_id:
-                        existing.collection_id = collection_id
                 else:
                     # Create new word
                     word = Word(

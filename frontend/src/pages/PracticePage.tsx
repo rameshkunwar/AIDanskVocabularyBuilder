@@ -10,10 +10,12 @@ import { BadgeNotification } from "@/components/Badge";
 import { Celebration } from "@/components/Celebration";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function PracticePage() {
     const queryClient = useQueryClient();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [activeWordId, setActiveWordId] = useState<number | null>(null);
     const [pointsPopup, setPointsPopup] = useState<number | null>(null);
     const [badgeNotification, setBadgeNotification] = useState<{
         emoji: string;
@@ -37,7 +39,6 @@ export function PracticePage() {
     const totalWords = allWords.length;
 
     // Check if we are truly done (all words read 5 times OR explicitly finished according to logic)
-    // Let's interpret "all words read" as the queue being empty.
     const isFinished = practiceQueue.length === 0 && totalWords > 0;
 
     // Safety check for index
@@ -50,7 +51,7 @@ export function PracticePage() {
         queryFn: getProgress,
     });
 
-    const currentWord = practiceQueue[currentIndex];
+    const currentWord = (activeWordId ? allWords.find(w => w.id === activeWordId) : null) || practiceQueue[currentIndex];
 
     const handleWordUpdate = useCallback(
         (updatedWord: Word) => {
@@ -99,13 +100,17 @@ export function PracticePage() {
 
     const goToNext = () => {
         if (currentIndex < practiceQueue.length - 1) {
-            setCurrentIndex((i) => i + 1);
+            const nextIdx = currentIndex + 1;
+            setCurrentIndex(nextIdx);
+            setActiveWordId(practiceQueue[nextIdx].id);
         }
     };
 
     const goToPrev = () => {
         if (currentIndex > 0) {
-            setCurrentIndex((i) => i - 1);
+            const prevIdx = currentIndex - 1;
+            setCurrentIndex(prevIdx);
+            setActiveWordId(practiceQueue[prevIdx].id);
         }
     };
 
@@ -242,24 +247,43 @@ export function PracticePage() {
                             Ord du har læst vil dukke op her...
                         </p>
                     ) : (
-                        <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-                            {readWords.map((word) => (
-                                <div
-                                    key={word.id}
-                                    className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-100 shadow-sm"
-                                >
-                                    <span className="font-medium text-gray-800">{word.text}</span>
-                                    {word.mastered ? (
-                                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                                            Mestret
+                        <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2 custom-scrollbar">
+                            {readWords.map((word) => {
+                                const isCurrent = currentWord?.id === word.id;
+                                return (
+                                    <button
+                                        key={word.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveWordId(word.id);
+                                            const idx = practiceQueue.findIndex((w) => w.id === word.id);
+                                            if (idx !== -1) {
+                                                setCurrentIndex(idx);
+                                            }
+                                        }}
+                                        className={cn(
+                                            "w-full text-left flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer",
+                                            isCurrent
+                                                ? "bg-purple-100/90 border-purple-400 shadow-sm ring-2 ring-purple-300"
+                                                : "bg-white border-gray-100 hover:bg-purple-50 hover:border-purple-200 shadow-sm"
+                                        )}
+                                        title="Klik for at øve dette ord"
+                                    >
+                                        <span className={cn("font-medium truncate mr-2", isCurrent ? "text-purple-900 font-bold" : "text-gray-800")}>
+                                            {word.text}
                                         </span>
-                                    ) : (
-                                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                                            Læst {word.read_count}x
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
+                                        {word.mastered ? (
+                                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full shrink-0">
+                                                Mestret
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+                                                Læst {word.read_count}x
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </Card>
