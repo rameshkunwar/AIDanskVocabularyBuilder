@@ -17,7 +17,7 @@ export function DashboardPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["collections"] });
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
             alert(err?.message || "Kunne ikke slette samlingen.");
         },
     });
